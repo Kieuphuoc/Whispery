@@ -13,3 +13,72 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id         Int        @id @default(autoincrement())
+  username   String     @unique
+  password   String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  voicePins  VoicePin[]
+  comments   Comment[]
+  reactions  Reaction[]
+}
+
+model VoicePin {
+  id          Int         @id @default(autoincrement())
+  audioUrl    String
+  description String
+  latitude    Float
+  longitude   Float
+  visibility  Visibility
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  userId      Int
+  user        User        @relation(fields: [userId], references: [id])
+  images      Image[]
+  reactions   Reaction[]
+  comments    Comment[]
+}
+
+model Image {
+  id         Int       @id @default(autoincrement())
+  imageUrl   String
+  createdAt  DateTime  @default(now())
+
+  voicePinId Int
+  voicePin   VoicePin  @relation(fields: [voicePinId], references: [id])
+}
+
+model Reaction {
+  id         Int       @id @default(autoincrement())
+  name       String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+
+  voicePinId Int
+  voicePin   VoicePin  @relation(fields: [voicePinId], references: [id])
+}
+
+model Comment {
+  id         Int       @id @default(autoincrement())
+  content    String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+
+  voicePinId Int
+  voicePin   VoicePin  @relation(fields: [voicePinId], references: [id])
+}
+
+enum Visibility {
+  PRIVATE
+  PUBLIC
+  FRIENDS
+}
