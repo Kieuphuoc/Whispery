@@ -1,322 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Todo App | Node.JS Express.JS SQLite</title>
-    <link rel="stylesheet" href="/styles.css" />
-    <link rel="stylesheet" href="/fanta.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
-        integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg=="
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Whisper App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --text: #0f0d05;
+      --background: #fbf9f2;
+      --primary: #c7ae4c;
+      --secondary: #a5de94;
+      --accent: #6fd27e;
+    }
+    body {
+      background-color: var(--background);
+      color: var(--text);
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(199, 174, 76, 0.5); }
+      70% { box-shadow: 0 0 0 25px rgba(199, 174, 76, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(199, 174, 76, 0); }
+    }
+    .record-btn {
+      background: linear-gradient(145deg, var(--primary), var(--accent));
+      animation: pulse 1.8s infinite;
+    }
+    .record-btn:hover {
+      transform: scale(1.1);
+      background: linear-gradient(145deg, var(--accent), var(--primary));
+    }
+    #map {
+      position: relative;
+    }
+    .voice-btn-container {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+    }
+  </style>
 </head>
+<body class="font-sans flex flex-col h-screen">
 
-<body>
-    <section id="auth">
-        <div>
-            <h2 className="sign-up-text">Login</h2>
-            <p>Create an account!</p>
-        </div>
+  <!-- Top Bar -->
+  <header class="flex items-center justify-between px-6 py-3 shadow bg-white">
+    <h1 class="text-xl font-bold" style="color: var(--primary);">Whisper</h1>
+    <div class="flex items-center gap-4">
+      <input type="text" placeholder="Search memories..." class="border rounded-full px-4 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]" />
+      <img src="https://i.pravatar.cc/40" alt="Profile" class="w-10 h-10 rounded-full border border-[var(--primary)]" />
+    </div>
+  </header>
 
-        <p id="error" style="display: none;"></p>
-        <input id="emailInput" placeholder="Email" />
-        <input id="passwordInput" placeholder="********" type="password" />
-        <button id="authBtn" onclick="authenticate()">
-            Submit
-        </button>
-        <hr />
-        <div class="register-content">
-            <p>Don&apos;t have an account?</p>
-            <button onclick="toggleIsRegister()" id="registerBtn">Sign up</button>
-        </div>
-    </section>
-    <header style="display: none;">
-        <h1 class="text-gradient">You have 0 open tasks.</h1>
-    </header>
-    <nav style="display: none;" class="tab-container">
-        <button onclick="changeTab('All')" class="tab-button  selected-tab">
-            <h4>All <span>(0)</span></h4>
-        </button>
-        <button onclick="changeTab('Open')" class="tab-button  ">
-            <h4>Open <span>(0)</span></h4>
-        </button>
-        <button onclick="changeTab('Complete')" class="tab-button  ">
-            <h4>Complete <span>(0)</span></h4>
-        </button>
-        <hr />
+  <div class="flex flex-1 overflow-hidden">
+    <!-- Sidebar -->
+    <nav class="w-20 bg-gradient-to-b from-[var(--primary)] to-[var(--secondary)] text-white flex flex-col items-center py-6 space-y-6 shadow-lg">
+      <button title="Home" class="hover:bg-[var(--accent)] p-3 rounded-full">🏠</button>
+      <button title="Voice" class="hover:bg-[var(--accent)] p-3 rounded-full">🎙️</button>
+      <button title="My Album" class="hover:bg-[var(--accent)] p-3 rounded-full">📁</button>
+      <button title="Search" class="hover:bg-[var(--accent)] p-3 rounded-full">🔍</button>
+      <button title="Settings" class="hover:bg-[var(--accent)] p-3 rounded-full">⚙️</button>
     </nav>
-    <main style="display: none;">
 
-
-    </main>
-</body>
-<script>
-    let token = localStorage.getItem('token')
-
-    let isLoading = false
-    let isAuthenticating = false
-    let isRegistration = false
-    let selectedTab = 'All'
-    let todos = []
-
-    const apiBase = '/'
-
-    // elements
-    const nav = document.querySelector('nav')
-    const header = document.querySelector('header')
-    const main = document.querySelector('main')
-    const navElements = document.querySelectorAll('.tab-button')
-    const authContent = document.getElementById('auth')
-    const textError = document.getElementById('error')
-    const email = document.getElementById('emailInput')
-    const password = document.getElementById('passwordInput')
-    const registerBtn = document.getElementById('registerBtn')
-    const authBtn = document.getElementById('authBtn')
-    const addTodoBtn = document.getElementById('addTodoBtn')
-    // const deleteBtn = document.getElementById('')
-    // const updateBtn = 
-
-    // PAGE RENDERING LOGIC
-    async function showDashboard() {
-        nav.style.display = 'block'
-        header.style.display = 'flex'
-        main.style.display = 'flex'
-        authContent.style.display = 'none'
-
-        await fetchTodos()
-    }
-
-    function updateHeaderText() {
-        const todosLength = todos.length
-        const newString = todos.length === 1 ?
-            `You have 1 open task.` :
-            `You have ${todosLength} open tasks.`
-        header.querySelector('h1').innerText = newString
-    }
-
-    function updateNavCount() {
-        navElements.forEach(ele => {
-            const btnText = ele.innerText.split(' ')[0]
-
-            // filter todos in here
-            const count = todos.filter(val => {
-                if (btnText === 'All') {
-                    return true
-                }
-                return btnText === 'Complete' ?
-                    val.completed :
-                    !val.completed
-            }).length
-
-            // target inside space and update value
-            ele.querySelector('span').innerText = `(${count})`
-        })
-    }
-
-    function changeTab(tab) {
-        selectedTab = tab
-        navElements.forEach(val => {
-            if (val.innerText.includes(tab)) {
-                val.classList.add('selected-tab')
-            } else {
-                val.classList.remove('selected-tab')
-            }
-        })
-        renderTodos()
-    }
-
-    function renderTodos() {
-        // need to add filtering logic in here
-
-        updateNavCount()
-        updateHeaderText()
-
-        let todoList = ``
-        todos.filter(val => {
-            return selectedTab === 'All' ? true : selectedTab === 'Complete' ? val.completed : !val.completed
-        }).forEach((todo, todoIndex) => {
-            const taskIndex = todo.id
-            todoList += `
-            <div class="card todo-item">
-                <p>${todo.task}</p>
-                <div class="todo-buttons">
-                    <button onclick="updateTodo(${taskIndex})" ${todo.completed ? 'disabled' : ''}>
-                        <h6>Done</h6>
-                    </button>
-                    <button onclick="deleteTodo(${taskIndex})">
-                        <h6>Delete</h6>
-                    </button>
-                </div>
-            </div>
-            `
-        })
-        todoList += `
-        <div class="input-container">
-            <input id="todoInput" placeholder="Add task" />
-            <button onclick="addTodo()">
-                <i class="fa-solid fa-plus"></i>
-            </button>
+    <!-- Main Content -->
+    <main class="flex-1 p-6 relative overflow-auto">
+      <!-- Map -->
+      <div id="map" class="w-full h-[70vh] rounded-lg shadow-lg border border-gray-300">
+        <!-- Voice Record Button inside map -->
+        <div class="voice-btn-container">
+          <button class="record-btn w-20 h-20 text-white rounded-full shadow-2xl flex items-center justify-center text-3xl transition-transform">
+            🎤
+          </button>
         </div>
-        `
-        main.innerHTML = todoList
-    }
+      </div>
 
-    // showDashboard()
+      <!-- List of Memories -->
+      <div class="mt-6">
+        <h2 class="text-lg font-semibold mb-3" style="color: var(--primary);">Recent Memories</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-4 bg-white rounded-lg shadow hover:shadow-lg transition">
+            <p class="font-semibold">Hà Nội Trip</p>
+            <span class="text-sm text-gray-500">12/08/2025</span>
+          </div>
+          <div class="p-4 bg-white rounded-lg shadow hover:shadow-lg transition">
+            <p class="font-semibold">Family Gathering</p>
+            <span class="text-sm text-gray-500">05/08/2025</span>
+          </div>
+          <div class="p-4 bg-white rounded-lg shadow hover:shadow-lg transition">
+            <p class="font-semibold">Beach Day</p>
+            <span class="text-sm text-gray-500">20/07/2025</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 
-    // AUTH LOGIC
+  <script>
+    const map = L.map('map').setView([21.028511, 105.854444], 13);
 
-    async function toggleIsRegister() {
-        isRegistration = !isRegistration
-        registerBtn.innerText = isRegistration ? 'Sign in' : 'Sign up'
-        document.querySelector('#auth > div h2').innerText = isRegistration ? 'Sign Up' : 'Login'
-        document.querySelector('.register-content p').innerText = isRegistration ? 'Already have an account?' : 'Don\'t have an account?'
-        document.querySelector('.register-content button').innerText = isRegistration ? 'Sign in' : 'Sign up'
-    }
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
 
-    async function authenticate() {
-        // access email and pass values
-        const emailVal = email.value
-        const passVal = password.value
-
-        // guard clauses... if authenticating, return
-        if (
-            isLoading ||
-            isAuthenticating ||
-            !emailVal ||
-            !passVal ||
-            passVal.length < 6 ||
-            !emailVal.includes('@')
-        ) { return }
-
-        // reset error and set isAuthenticating to true
-        error.style.display = 'none'
-        isAuthenticating = true
-        authBtn.innerText = 'Authenticating...'
-
-        try {
-            let data
-            if (isRegistration) {
-                // register an account
-                const response = await fetch(apiBase + 'auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: emailVal, password: passVal })
-                })
-                data = await response.json()
-            } else {
-                // login an account
-                const response = await fetch(apiBase + 'auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: emailVal, password: passVal })
-                })
-                data = await response.json()
-            }
-
-            if (data.token) {
-                token = data.token
-                localStorage.setItem('token', token)
-
-                // authenicating into loading
-                authBtn.innerText = 'Loading...'
-
-                // fetch todos
-                await fetchTodos()
-
-                // show dashboard
-                showDashboard()
-            } else {
-                throw Error('❌ Failed to authenticate...')
-            }
-
-        } catch (err) {
-            console.log(err.message)
-            error.innerText = err.message
-            error.style.display = 'block'
-        } finally {
-            authBtn.innerText = 'Submit'
-            isAuthenticating = false
-        }
-
-
-    }
-
-    function logout() {
-        // wipe states and clear cached token
-    }
-
-    // CRUD LOGIC
-
-    async function fetchTodos() {
-        isLoading = true
-        const response = await fetch(apiBase + 'todos', {
-            headers: { 'Authorization': token }
-        })
-        const todosData = await response.json()
-        todos = todosData
-        isLoading = false
-        renderTodos()
-    }
-
-    async function updateTodo(index) {
-        // set task complete status to true
-        await fetch(apiBase + 'todos' + '/' + index, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': token
-            },
-            body: JSON.stringify({ task: todos.find(val => val.id === index).task, completed: 1 })
-        })
-        fetchTodos()
-    }
-
-    async function deleteTodo(index) {
-        // set task complete status to true
-        await fetch(apiBase + 'todos' + '/' + index, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': token
-            },
-        })
-        fetchTodos()
-    }
-
-    async function addTodo() {
-        // have to access this val later as it's rendered with js
-        const todoInput = document.getElementById('todoInput')
-        const task = todoInput.value
-
-        if (!task) { return }
-
-        await fetch(apiBase + 'todos', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': token
-            },
-            body: JSON.stringify({ task })
-        })
-        todoInput.value = ''
-        fetchTodos()
-    }
-
-    // UTILITY FUNCTIONS
-
-
-    // load page and read local storage for key
-
-    // default to login screen
-
-    // if is authenticated, show todo app
-    if (token) {
-        async function run() {
-            await fetchTodos()
-            showDashboard()
-        }
-        run()
-    }
-</script>
-
+    L.marker([21.028511, 105.854444]).addTo(map)
+      .bindPopup('<b>Hà Nội</b><br>Thủ đô Việt Nam')
+      .openPopup();
+  </script>
+</body>
 </html>
