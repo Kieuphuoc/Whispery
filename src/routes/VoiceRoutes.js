@@ -15,8 +15,8 @@ router.get('/', async (req, res) => {
 
 // Create a new Voice Pin 
 router.post('/', async (req, res) => {
-    const { audioUrl, description, latitude, longtitude, visibility, images } = req.body;
-
+    const { audioUrl, description, latitude, longtitude, visibility } = req.body;
+    const { file } = req.file;
     try {
         const voicePin = await prisma.voicePin.create({
             data: {
