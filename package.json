@@ -1,5 +1,5 @@
 {
-  "name": "whisper_web",
+  "name": "whisper_backend",
   "version": "1.0.0",
   "description": "A Dockerized fullstack that uses a NodeJS backend, PostgreSQL database, a Prisma ORM and JWT authentication.",
   "main": "index.js",
