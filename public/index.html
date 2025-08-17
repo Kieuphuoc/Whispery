@@ -1,12 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Whisper App</title>
+  <title>Whisper of Memory - Nơi lưu giữ ký ức bằng âm thanh</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     :root {
       --text: #0f0d05;
@@ -14,100 +15,614 @@
       --primary: #c7ae4c;
       --secondary: #a5de94;
       --accent: #6fd27e;
+      --primary-light: #e8d7a0;
+      --secondary-light: #d4f0c4;
+      --accent-light: #a8e8b8;
+      --background-light: #fefdf8;
     }
+    
     body {
       background-color: var(--background);
       color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
+    
     @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(199, 174, 76, 0.5); }
-      70% { box-shadow: 0 0 0 25px rgba(199, 174, 76, 0); }
+      0% { box-shadow: 0 0 0 0 rgba(199, 174, 76, 0.7); }
+      70% { box-shadow: 0 0 0 20px rgba(199, 174, 76, 0); }
       100% { box-shadow: 0 0 0 0 rgba(199, 174, 76, 0); }
     }
-    .record-btn {
-      background: linear-gradient(145deg, var(--primary), var(--accent));
-      animation: pulse 1.8s infinite;
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
     }
+    
+    .record-btn {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      animation: pulse 2s infinite, float 3s ease-in-out infinite;
+      transition: all 0.3s ease;
+    }
+    
     .record-btn:hover {
       transform: scale(1.1);
-      background: linear-gradient(145deg, var(--accent), var(--primary));
+      background: linear-gradient(135deg, var(--accent), var(--primary));
     }
+    
+    .record-btn.recording {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+      animation: pulse 0.8s infinite;
+    }
+    
+    .voice-pin {
+      background: linear-gradient(135deg, var(--secondary-light), var(--accent-light));
+      border: 2px solid var(--primary);
+      transition: all 0.3s ease;
+    }
+    
+    .voice-pin:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 25px rgba(199, 174, 76, 0.3);
+    }
+    
+    .sidebar-item {
+      transition: all 0.3s ease;
+    }
+    
+    .sidebar-item:hover {
+      background: var(--primary-light);
+      transform: translateX(5px);
+    }
+    
+    .sidebar-item.active {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .memory-card {
+      background: var(--background-light);
+      border: 1px solid var(--primary-light);
+      transition: all 0.3s ease;
+    }
+    
+    .memory-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(199, 174, 76, 0.2);
+    }
+    
+    .emotion-badge {
+      background: linear-gradient(135deg, var(--secondary), var(--accent));
+      color: white;
+      font-weight: 600;
+    }
+    
+    .modal-overlay {
+      background: rgba(15, 13, 5, 0.8);
+      backdrop-filter: blur(5px);
+    }
+    
+    .modal-content {
+      background: var(--background-light);
+      border: 2px solid var(--primary-light);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: white;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(199, 174, 76, 0.4);
+    }
+    
+    .btn-secondary {
+      background: var(--secondary-light);
+      color: var(--text);
+      border: 1px solid var(--secondary);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--secondary);
+      color: white;
+    }
+    
+    .random-voice-indicator {
+      background: linear-gradient(135deg, var(--accent), var(--secondary));
+      animation: pulse 1.5s infinite;
+    }
+    
+    .voice-wave {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      height: 20px;
+    }
+    
+    .voice-wave-bar {
+      width: 3px;
+      background: var(--primary);
+      border-radius: 2px;
+      animation: wave 1s ease-in-out infinite;
+    }
+    
+    @keyframes wave {
+      0%, 100% { height: 5px; }
+      50% { height: 20px; }
+    }
+    
+    .voice-wave-bar:nth-child(2) { animation-delay: 0.1s; }
+    .voice-wave-bar:nth-child(3) { animation-delay: 0.2s; }
+    .voice-wave-bar:nth-child(4) { animation-delay: 0.3s; }
+    .voice-wave-bar:nth-child(5) { animation-delay: 0.4s; }
+    
     #map {
-      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(199, 174, 76, 0.15);
     }
-    .voice-btn-container {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
+    
+    .leaflet-popup-content-wrapper {
+      background: var(--background-light);
+      border: 2px solid var(--primary-light);
+      border-radius: 12px;
+    }
+    
+    .leaflet-popup-tip {
+      background: var(--background-light);
+      border: 2px solid var(--primary-light);
     }
   </style>
 </head>
-<body class="font-sans flex flex-col h-screen">
+<body class="font-sans flex flex-col h-screen overflow-hidden">
 
   <!-- Top Bar -->
-  <header class="flex items-center justify-between px-6 py-3 shadow bg-white">
-    <h1 class="text-xl font-bold" style="color: var(--primary);">Whisper</h1>
+  <header class="flex items-center justify-between px-6 py-4 shadow-sm bg-white border-b border-gray-100">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-lg">
+        W
+      </div>
+      <div>
+        <h1 class="text-xl font-bold" style="color: var(--primary);">Whisper of Memory</h1>
+        <p class="text-xs text-gray-500">Nơi lưu giữ ký ức bằng âm thanh</p>
+      </div>
+    </div>
+    
     <div class="flex items-center gap-4">
-      <input type="text" placeholder="Search memories..." class="border rounded-full px-4 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]" />
-      <img src="https://i.pravatar.cc/40" alt="Profile" class="w-10 h-10 rounded-full border border-[var(--primary)]" />
+      <!-- Random Voice Toggle -->
+      <button id="randomVoiceBtn" class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300" style="background: var(--secondary-light); color: var(--text);">
+        <i class="fas fa-random"></i>
+        <span>Random Voice</span>
+        <div id="randomIndicator" class="w-2 h-2 rounded-full bg-gray-400"></div>
+      </button>
+      
+      <!-- Search -->
+      <div class="relative">
+        <input type="text" placeholder="Tìm kiếm ký ức..." 
+               class="border border-gray-200 rounded-full px-4 py-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent w-64" />
+        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+      </div>
+      
+      <!-- Notifications -->
+      <button class="relative p-2 rounded-full hover:bg-gray-100 transition-colors">
+        <i class="fas fa-bell text-gray-600"></i>
+        <span class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+      </button>
+      
+      <!-- Profile -->
+      <img src="https://i.pravatar.cc/40" alt="Profile" class="w-10 h-10 rounded-full border-2 border-primary cursor-pointer hover:scale-105 transition-transform" />
     </div>
   </header>
 
   <div class="flex flex-1 overflow-hidden">
     <!-- Sidebar -->
-    <nav class="w-20 bg-gradient-to-b from-[var(--primary)] to-[var(--secondary)] text-white flex flex-col items-center py-6 space-y-6 shadow-lg">
-      <button title="Home" class="hover:bg-[var(--accent)] p-3 rounded-full">🏠</button>
-      <button title="Voice" class="hover:bg-[var(--accent)] p-3 rounded-full">🎙️</button>
-      <button title="My Album" class="hover:bg-[var(--accent)] p-3 rounded-full">📁</button>
-      <button title="Search" class="hover:bg-[var(--accent)] p-3 rounded-full">🔍</button>
-      <button title="Settings" class="hover:bg-[var(--accent)] p-3 rounded-full">⚙️</button>
+    <nav class="w-20 bg-gradient-to-b from-primary to-secondary text-white flex flex-col items-center py-6 space-y-4 shadow-lg">
+      <button class="sidebar-item active w-12 h-12 rounded-xl flex items-center justify-center text-lg hover:scale-110 transition-all" title="Bản đồ">
+        <i class="fas fa-map-marked-alt"></i>
+      </button>
+      <button class="sidebar-item w-12 h-12 rounded-xl flex items-center justify-center text-lg hover:scale-110 transition-all" title="Ghi âm">
+        <i class="fas fa-microphone"></i>
+      </button>
+      <button class="sidebar-item w-12 h-12 rounded-xl flex items-center justify-center text-lg hover:scale-110 transition-all" title="Ký ức của tôi">
+        <i class="fas fa-heart"></i>
+      </button>
+      <button class="sidebar-item w-12 h-12 rounded-xl flex items-center justify-center text-lg hover:scale-110 transition-all" title="Bộ sưu tập">
+        <i class="fas fa-bookmark"></i>
+      </button>
+      <button class="sidebar-item w-12 h-12 rounded-xl flex items-center justify-center text-lg hover:scale-110 transition-all" title="Bạn bè">
+        <i class="fas fa-users"></i>
+      </button>
+      <button class="sidebar-item w-12 h-12 rounded-xl flex items-center justify-center text-lg hover:scale-110 transition-all" title="Cài đặt">
+        <i class="fas fa-cog"></i>
+      </button>
     </nav>
 
     <!-- Main Content -->
     <main class="flex-1 p-6 relative overflow-auto">
-      <!-- Map -->
-      <div id="map" class="w-full h-[70vh] rounded-lg shadow-lg border border-gray-300">
-        <!-- Voice Record Button inside map -->
-        <div class="voice-btn-container">
-          <button class="record-btn w-20 h-20 text-white rounded-full shadow-2xl flex items-center justify-center text-3xl transition-transform">
-            🎤
-          </button>
+      <!-- Map Container -->
+      <div class="relative">
+        <div id="map" class="w-full h-[75vh] rounded-2xl shadow-xl">
+          <!-- Voice Record Button -->
+          <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-[1000]">
+            <button id="recordBtn" class="record-btn w-16 h-16 text-white rounded-full shadow-2xl flex items-center justify-center text-2xl">
+              <i class="fas fa-microphone"></i>
+            </button>
+          </div>
+          
+          <!-- Map Controls -->
+          <div class="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+            <button class="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:scale-105 transition-transform" title="Vị trí hiện tại">
+              <i class="fas fa-crosshairs text-primary"></i>
+            </button>
+            <button class="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:scale-105 transition-transform" title="Lọc cảm xúc">
+              <i class="fas fa-filter text-primary"></i>
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- List of Memories -->
-      <div class="mt-6">
-        <h2 class="text-lg font-semibold mb-3" style="color: var(--primary);">Recent Memories</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="p-4 bg-white rounded-lg shadow hover:shadow-lg transition">
-            <p class="font-semibold">Hà Nội Trip</p>
-            <span class="text-sm text-gray-500">12/08/2025</span>
+      <!-- Recent Memories Section -->
+      <div class="mt-8">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold" style="color: var(--primary);">
+            <i class="fas fa-clock mr-2"></i>
+            Ký ức gần đây
+          </h2>
+          <button class="text-sm text-primary hover:underline">Xem tất cả</button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Memory Card 1 -->
+          <div class="memory-card p-4 rounded-xl cursor-pointer">
+            <div class="flex items-start justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-secondary to-accent flex items-center justify-center text-white text-sm">
+                  🌞
+                </div>
+                <span class="font-semibold text-sm">Hà Nội Trip</span>
+              </div>
+              <span class="text-xs text-gray-500">2 giờ trước</span>
+            </div>
+            <div class="flex items-center gap-2 mb-2">
+              <div class="voice-wave">
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+              </div>
+              <span class="text-xs text-gray-600">0:32</span>
+            </div>
+            <p class="text-sm text-gray-600 mb-3">Chuyến đi tuyệt vời cùng gia đình...</p>
+            <div class="flex items-center justify-between">
+              <span class="emotion-badge px-2 py-1 rounded-full text-xs">Vui vẻ</span>
+              <div class="flex items-center gap-2 text-xs text-gray-500">
+                <i class="fas fa-heart text-red-400"></i>
+                <span>12</span>
+                <i class="fas fa-comment text-blue-400"></i>
+                <span>3</span>
+              </div>
+            </div>
           </div>
-          <div class="p-4 bg-white rounded-lg shadow hover:shadow-lg transition">
-            <p class="font-semibold">Family Gathering</p>
-            <span class="text-sm text-gray-500">05/08/2025</span>
+
+          <!-- Memory Card 2 -->
+          <div class="memory-card p-4 rounded-xl cursor-pointer">
+            <div class="flex items-start justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-sm">
+                  ☁️
+                </div>
+                <span class="font-semibold text-sm">Cafe Sáng</span>
+              </div>
+              <span class="text-xs text-gray-500">1 ngày trước</span>
+            </div>
+            <div class="flex items-center gap-2 mb-2">
+              <div class="voice-wave">
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+              </div>
+              <span class="text-xs text-gray-600">0:18</span>
+            </div>
+            <p class="text-sm text-gray-600 mb-3">Sáng nay thật yên bình...</p>
+            <div class="flex items-center justify-between">
+              <span class="emotion-badge px-2 py-1 rounded-full text-xs" style="background: linear-gradient(135deg, #a8e8b8, #d4f0c4);">Thư giãn</span>
+              <div class="flex items-center gap-2 text-xs text-gray-500">
+                <i class="fas fa-heart text-red-400"></i>
+                <span>8</span>
+                <i class="fas fa-comment text-blue-400"></i>
+                <span>1</span>
+              </div>
+            </div>
           </div>
-          <div class="p-4 bg-white rounded-lg shadow hover:shadow-lg transition">
-            <p class="font-semibold">Beach Day</p>
-            <span class="text-sm text-gray-500">20/07/2025</span>
+
+          <!-- Memory Card 3 -->
+          <div class="memory-card p-4 rounded-xl cursor-pointer">
+            <div class="flex items-start justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-red-500 flex items-center justify-center text-white text-sm">
+                  💧
+                </div>
+                <span class="font-semibold text-sm">Beach Day</span>
+              </div>
+              <span class="text-xs text-gray-500">3 ngày trước</span>
+            </div>
+            <div class="flex items-center gap-2 mb-2">
+              <div class="voice-wave">
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+              </div>
+              <span class="text-xs text-gray-600">0:45</span>
+            </div>
+            <p class="text-sm text-gray-600 mb-3">Tiếng sóng biển thật tuyệt...</p>
+            <div class="flex items-center justify-between">
+              <span class="emotion-badge px-2 py-1 rounded-full text-xs" style="background: linear-gradient(135deg, #ffb3ba, #ffd1dc);">Hạnh phúc</span>
+              <div class="flex items-center gap-2 text-xs text-gray-500">
+                <i class="fas fa-heart text-red-400"></i>
+                <span>25</span>
+                <i class="fas fa-comment text-blue-400"></i>
+                <span>7</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </main>
   </div>
 
+  <!-- Recording Modal -->
+  <div id="recordingModal" class="modal-overlay fixed inset-0 z-50 hidden flex items-center justify-center">
+    <div class="modal-content p-8 rounded-2xl max-w-md w-full mx-4">
+      <div class="text-center">
+        <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white text-2xl animate-pulse">
+          <i class="fas fa-microphone"></i>
+        </div>
+        <h3 class="text-xl font-bold mb-2">Đang ghi âm...</h3>
+        <p class="text-gray-600 mb-6">Chạm để dừng ghi âm</p>
+        
+        <div class="flex items-center justify-center gap-2 mb-6">
+          <div class="voice-wave">
+            <div class="voice-wave-bar"></div>
+            <div class="voice-wave-bar"></div>
+            <div class="voice-wave-bar"></div>
+            <div class="voice-wave-bar"></div>
+            <div class="voice-wave-bar"></div>
+          </div>
+          <span class="text-lg font-mono">00:15</span>
+        </div>
+        
+        <div class="flex gap-3">
+          <button class="btn-secondary flex-1 py-3 rounded-xl font-medium">
+            <i class="fas fa-times mr-2"></i>Hủy
+          </button>
+          <button class="btn-primary flex-1 py-3 rounded-xl font-medium">
+            <i class="fas fa-check mr-2"></i>Lưu
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Voice Detail Modal -->
+  <div id="voiceDetailModal" class="modal-overlay fixed inset-0 z-50 hidden flex items-center justify-center">
+    <div class="modal-content p-6 rounded-2xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold">Chi tiết ký ức</h3>
+        <button class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+        <!-- Voice Player -->
+        <div class="bg-gray-50 rounded-xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white">
+                🌞
+              </div>
+              <div>
+                <h4 class="font-semibold">Hà Nội Trip</h4>
+                <p class="text-sm text-gray-500">2 giờ trước</p>
+              </div>
+            </div>
+            <span class="emotion-badge px-3 py-1 rounded-full text-sm">Vui vẻ</span>
+          </div>
+          
+          <div class="flex items-center gap-4">
+            <button class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center hover:scale-105 transition-transform">
+              <i class="fas fa-play"></i>
+            </button>
+            <div class="flex-1">
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-primary h-2 rounded-full" style="width: 45%"></div>
+              </div>
+              <div class="flex justify-between text-xs text-gray-500 mt-1">
+                <span>0:15</span>
+                <span>0:32</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Note -->
+        <div>
+          <h5 class="font-semibold mb-2">Ghi chú</h5>
+          <p class="text-gray-600 bg-gray-50 p-3 rounded-lg">
+            Chuyến đi tuyệt vời cùng gia đình. Hôm nay thật là một ngày đẹp trời, 
+            chúng tôi đã ghé thăm nhiều địa điểm thú vị ở Hà Nội...
+          </p>
+        </div>
+        
+        <!-- Location -->
+        <div>
+          <h5 class="font-semibold mb-2">Vị trí</h5>
+          <div class="flex items-center gap-2 text-gray-600">
+            <i class="fas fa-map-marker-alt text-primary"></i>
+            <span>Hoàn Kiếm, Hà Nội, Việt Nam</span>
+          </div>
+        </div>
+        
+        <!-- Device Info -->
+        <div>
+          <h5 class="font-semibold mb-2">Thông tin thiết bị</h5>
+          <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
+            <div>iPhone 15 Pro</div>
+            <div>iOS 17.2</div>
+            <div>Microphone: Built-in</div>
+            <div>Sample Rate: 44.1kHz</div>
+          </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="flex gap-2 pt-4 border-t">
+          <button class="btn-secondary flex-1 py-2 rounded-lg text-sm">
+            <i class="fas fa-reply mr-2"></i>Phản hồi
+          </button>
+          <button class="btn-secondary flex-1 py-2 rounded-lg text-sm">
+            <i class="fas fa-heart mr-2"></i>Thích
+          </button>
+          <button class="btn-secondary flex-1 py-2 rounded-lg text-sm">
+            <i class="fas fa-bookmark mr-2"></i>Lưu
+          </button>
+          <button class="btn-secondary flex-1 py-2 rounded-lg text-sm">
+            <i class="fas fa-share mr-2"></i>Chia sẻ
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // Initialize map
     const map = L.map('map').setView([21.028511, 105.854444], 13);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    L.marker([21.028511, 105.854444]).addTo(map)
-      .bindPopup('<b>Hà Nội</b><br>Thủ đô Việt Nam')
-      .openPopup();
+    // Add sample voice pins
+    const voicePins = [
+      {
+        lat: 21.028511,
+        lng: 105.854444,
+        title: 'Hà Nội Trip',
+        emotion: '🌞',
+        duration: '0:32',
+        likes: 12,
+        comments: 3
+      },
+      {
+        lat: 21.0245,
+        lng: 105.8412,
+        title: 'Cafe Sáng',
+        emotion: '☁️',
+        duration: '0:18',
+        likes: 8,
+        comments: 1
+      },
+      {
+        lat: 21.0325,
+        lng: 105.8612,
+        title: 'Beach Day',
+        emotion: '💧',
+        duration: '0:45',
+        likes: 25,
+        comments: 7
+      }
+    ];
+
+    voicePins.forEach(pin => {
+      const marker = L.marker([pin.lat, pin.lng]).addTo(map);
+      
+      const popupContent = `
+        <div class="voice-pin-popup p-3 min-w-[200px]">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="text-2xl">${pin.emotion}</div>
+            <div>
+              <h4 class="font-semibold text-sm">${pin.title}</h4>
+              <p class="text-xs text-gray-500">${pin.duration}</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-3">
+              <span><i class="fas fa-heart text-red-400"></i> ${pin.likes}</span>
+              <span><i class="fas fa-comment text-blue-400"></i> ${pin.comments}</span>
+            </div>
+            <button class="bg-primary text-white px-2 py-1 rounded text-xs hover:bg-accent transition-colors">
+              Nghe
+            </button>
+          </div>
+        </div>
+      `;
+      
+      marker.bindPopup(popupContent);
+    });
+
+    // Record button functionality
+    const recordBtn = document.getElementById('recordBtn');
+    const recordingModal = document.getElementById('recordingModal');
+    
+    recordBtn.addEventListener('click', () => {
+      recordBtn.classList.add('recording');
+      recordingModal.classList.remove('hidden');
+    });
+
+    // Random voice toggle
+    const randomVoiceBtn = document.getElementById('randomVoiceBtn');
+    const randomIndicator = document.getElementById('randomIndicator');
+    let randomVoiceActive = false;
+    
+    randomVoiceBtn.addEventListener('click', () => {
+      randomVoiceActive = !randomVoiceActive;
+      if (randomVoiceActive) {
+        randomVoiceBtn.style.background = 'linear-gradient(135deg, var(--accent), var(--secondary))';
+        randomVoiceBtn.style.color = 'white';
+        randomIndicator.style.background = '#ff6b6b';
+        randomIndicator.classList.add('animate-pulse');
+      } else {
+        randomVoiceBtn.style.background = 'var(--secondary-light)';
+        randomVoiceBtn.style.color = 'var(--text)';
+        randomIndicator.style.background = '#9ca3af';
+        randomIndicator.classList.remove('animate-pulse');
+      }
+    });
+
+    // Memory card click
+    document.querySelectorAll('.memory-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.getElementById('voiceDetailModal').classList.remove('hidden');
+      });
+    });
+
+    // Close modals
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.add('hidden');
+        }
+      });
+    });
+
+    document.querySelectorAll('.modal-overlay .fa-times').forEach(closeBtn => {
+      closeBtn.addEventListener('click', () => {
+        closeBtn.closest('.modal-overlay').classList.add('hidden');
+      });
+    });
+
+    // Sidebar navigation
+    document.querySelectorAll('.sidebar-item').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+      });
+    });
   </script>
 </body>
 </html>

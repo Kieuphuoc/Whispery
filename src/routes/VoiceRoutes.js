@@ -1,5 +1,8 @@
 import express from 'express'
 import prisma from '../prismaClient.js'
+import streamifier from 'streamifier';
+import cloudinary from '../config/cloudinary.js'
+import { Visibility } from '@prisma/client';
 
 const router = express.Router()
 
@@ -15,34 +18,62 @@ router.get('/', async (req, res) => {
 
 // Create a new Voice Pin 
 router.post('/', async (req, res) => {
-    const { audioUrl, description, latitude, longtitude, visibility, images } = req.body;
+    const { description, latitude, longitude, visibility, images } = req.body;
 
     try {
+        // Upload audio lên Cloudinary từ memory buffer
+        const streamUpload = (buffer) => {
+            return new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    {
+                        resource_type: 'video',
+                        folder: "voicepin"
+                    }, // âm thanh, lưu vào thư mục voicepin ở cloudinary
+                    (error, result) => {
+                        if (result) resolve(result);
+                        else reject(error);
+                    }
+                );
+                streamifier.createReadStream(buffer).pipe(stream);
+            });
+        };
+
+        const result = await streamUpload(req.file.buffer);
+        const audioUrl = result.secure_url;
+
+        // Tạo voice pin
         const voicePin = await prisma.voicePin.create({
             data: {
                 audioUrl,
                 description: description || '',
-                latitude,
-                visibility, // ở đây là kiểu enum thì sao
-                userId: req.userId
-                // còn hình ảnh là một  [] thì thêm như nào?
+                latitude: parseFloat(latitude),
+                longitude: parseFloat(longitude),
+                visibility: visibility || Visibility.PUBLIC,
+                userId: req.userId,
+                images: {
+                    create: JSON.parse(images || '[]').map(url => ({ url }))
+                }
+            },
+            include: {
+                images: true
             }
-        })
-        res.json(voicePin)
+        });
 
-    } catch(err){
-        console.log(err.message)
-        res.sendStatus(503)
+        res.json(voicePin);
+
+    } catch (err) {
+        console.log(err.message);
+        res.sendStatus(503);
     }
-})
+});
 
 
 // Update a Voice Pin
-router.put('/:id', async(req, res) => {
+router.put('/:id', async (req, res) => {
 })
 
 // Delete a Voice Pin
-router.delete('/:id', async(req, res) => {
+router.delete('/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -53,7 +84,7 @@ router.delete('/:id', async(req, res) => {
             }
         })
         res.sendStatus(200)
-    }catch(err) {
+    } catch (err) {
         console.log(err.message)
         res.sendStatus(503)
     }
@@ -63,7 +94,7 @@ router.delete('/:id', async(req, res) => {
 router.get('/', async (req, res) => {
     try {
         const comment = await prisma.comment.findMany({
-            where :{
+            where: {
                 userId: req.userId,
             }
         })

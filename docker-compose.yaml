@@ -5,7 +5,7 @@ services:
     container_name: whisper-app
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/whisper-db
-      - JWT_SECRET=your_jwt_secret_here
+      - JWT_SECRET=4c2a57d6d42e73e71312b24ab784eb76424a6a7909dbb9283b052b1c8cf005aa
       - NODE_ENV=development
       - PORT=5000
     ports:
