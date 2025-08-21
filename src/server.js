@@ -3,6 +3,7 @@ import path, { dirname } from 'path'
 import { fileURLToPath } from 'url'
 import authRoutes from './routes/authRoutes.js'
 import voiceRoutes from './routes/voiceRoutes.js'
+import commentRoutes from './routes/commentRoutes.js'
 import authMiddleware from './middleware/authMiddleware.js'
 import uploadMiddleware from './middleware/uploadMiddleware.js'
 const app  = express()
@@ -29,4 +30,4 @@ app.use(express.json())
 //Routes
 app.use('/auth',authRoutes)
 app.use('/voice', authMiddleware, uploadMiddleware.single("file") , voiceRoutes)
-
+app.use('/comment', authMiddleware, commentRoutes)
