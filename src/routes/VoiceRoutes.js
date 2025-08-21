@@ -83,7 +83,7 @@ router.delete('/:id', async (req, res) => {
                 userId: req.userId
             }
         })
-        res.sendStatus(200)
+        res.sendStatus(204)
     } catch (err) {
         console.log(err.message)
         res.sendStatus(503)
