@@ -1,11 +1,10 @@
 import express from 'express'
 import path, { dirname } from 'path'
 import { fileURLToPath } from 'url'
+import cors from 'cors'; 
+import voiceRoutes from './routes/voiceRoutes.js';
+import commentRoutes from './routes/commentRoutes.js';
 import authRoutes from './routes/authRoutes.js'
-import voiceRoutes from './routes/voiceRoutes.js'
-import commentRoutes from './routes/commentRoutes.js'
-import authMiddleware from './middleware/authMiddleware.js'
-import uploadMiddleware from './middleware/uploadMiddleware.js'
 const app  = express()
 const PORT = process.env.PORT || 5000
 
@@ -25,9 +24,10 @@ app.get('/', (req, res)=>{
 app.use(express.static(path.join(__dirname, '../public')))
 
 //Middleware
+app.use(cors());      
 app.use(express.json())
 
 //Routes
-app.use('/auth',authRoutes)
-app.use('/voice', authMiddleware, uploadMiddleware.single("file") , voiceRoutes)
-app.use('/comment', authMiddleware, commentRoutes)
+app.use('/auth', authRoutes)
+app.use('/voice', voiceRoutes)
+app.use('/comment', commentRoutes)
