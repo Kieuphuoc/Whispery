@@ -33,12 +33,13 @@ export const login = async (username, password) => {
         })
 
         // None user associated with that username
-        if (!user) { return res.status(404).send({ message: "User not found" }) }
+        if (!user) { 
+            console.log("No has username")}
 
         const passwordIsValid = bcrypt.compareSync(password, user.password)
 
         // Password does not match
-        if (!passwordIsValid) { return res.status(401).send({ message: "Invalid Password" }) }
+        if (!passwordIsValid) { console.log("Incorrect password") }
         console.log(user)
 
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' })

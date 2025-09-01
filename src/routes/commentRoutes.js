@@ -9,6 +9,7 @@ router.post('/', authMiddleware, createComment)
 
 // DELETE a comment
 router.delete('/:id', authMiddleware, deleteComment)
+
 // UPDATE a comment
 router.put('/:id', authMiddleware, updateComment)
 
