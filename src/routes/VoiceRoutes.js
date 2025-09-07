@@ -13,10 +13,10 @@ router.get('/',  authMiddleware, getVoicePin)
 router.get('/public', getPublicVoicePin)
 
 // Create a new Voice Pin 
-router.post('/', authMiddleware, uploadMiddleware.single("file"), logMiddleware, createVoicePin)
+router.post('/', authMiddleware, uploadMiddleware.single("file"), createVoicePin)
 
 // Update a Voice Pin
-router.put('/:id', authMiddleware, uploadMiddleware.single("file"),logMiddleware, updateVoicePin)
+router.put('/:id', authMiddleware, uploadMiddleware.single("file"), updateVoicePin)
 
 // Delete a Voice Pin
 router.delete('/:id', authMiddleware, deleteVoicePin)

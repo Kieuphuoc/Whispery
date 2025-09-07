@@ -8,9 +8,9 @@ export const createVoicePin = async (description, latitude, longitude, visibilit
     try {
         const streamUpload = (buffer) => {
             return new Promise((resolve, reject) => {
-                const stream = cloudinary.uploader.upload_stream(
+                const uploadStream = cloudinary.uploader.upload_stream(
                     {
-                        resource_type: 'video',
+                        resource_type: 'auto',
                         folder: "voicepin"
                     },
                     (error, result) => {
@@ -18,7 +18,7 @@ export const createVoicePin = async (description, latitude, longitude, visibilit
                         else reject(error);
                     }
                 );
-                streamifier.createReadStream(buffer).pipe(stream);
+                uploadStream.end(buffer);
             });
         };
 
@@ -45,8 +45,8 @@ export const createVoicePin = async (description, latitude, longitude, visibilit
         return { data: voicePin };
 
     } catch (err) {
-        console.log(err.message);
-        throw err
+        console.log("Upload voice pin error:", err.message);
+        throw err;
     }
 }
 
@@ -101,18 +101,27 @@ export const updateVoicePin = async (description, latitude, longitude, visibilit
         throw err
     }
 }
+
 export const getPublicVoicePin = async () => {
     try {
         const voicePin = await prisma.voicePin.findMany({
             where: { visibility: 'PUBLIC' },
-
-        })
-        return { data: voicePin }
+            include: {
+                user: {
+                    select: {
+                        username: true,
+                        // avatar: true, 
+                    }
+                }
+            }
+        });
+        return { data: voicePin };
     } catch (err) {
         console.log(err.message);
-        throw err
+        throw err;
     }
-}
+};
+
 
 export const getVoicePin = async (userId) => {
     try {
