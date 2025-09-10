@@ -102,6 +102,34 @@ export const updateVoicePin = async (description, latitude, longitude, visibilit
     }
 }
 
+export const getRetrieveVoicePin = async (id) => {
+    try {
+        const voicePin = await prisma.voicePin.update({
+                where: { id: parseInt(id) },
+                data: { listens: { increment: 1 } },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            username: true,
+                            displayName: true,
+                            avatar: true,   
+                        },
+                    },
+                },
+        })
+
+        if (!voicePin) {
+            throw new Error('Voice Pin not found');
+        }
+
+        return { data: voicePin };
+    } catch (err) {
+        console.error(err.message);
+        throw err;
+    }
+};
+
 export const getPublicVoicePin = async () => {
     try {
         const voicePin = await prisma.voicePin.findMany({
@@ -110,7 +138,8 @@ export const getPublicVoicePin = async () => {
                 user: {
                     select: {
                         username: true,
-                        // avatar: true, 
+                        avatar: true, 
+                        displayName: true,
                     }
                 }
             }
@@ -121,6 +150,69 @@ export const getPublicVoicePin = async () => {
         throw err;
     }
 };
+
+export const getPublicVoicePinByUser = async (userId) => {
+    try {
+        const voicePins = await prisma.voicePin.findMany({
+            where: { visibility: 'PUBLIC', userId: parseInt(userId) },
+            include: {
+                user: {
+                    select: {
+                        username: true,
+                        displayName: true,
+                        avatar: true
+                    }
+                }
+            }
+        })
+        return { data: voicePins }
+    } catch (err) {
+        console.log(err.message)
+        throw err
+    }
+}
+
+export const getMyPublicVoicePins = async (userId) => {
+    try {
+        const voicePins = await prisma.voicePin.findMany({
+            where: { visibility: 'PUBLIC', userId },
+            include: {
+                user: { select: { username: true, displayName: true, avatar: true } }
+            }
+        })
+        return { data: voicePins }
+    } catch (err) {
+        console.log(err.message)
+        throw err
+    }
+}
+
+export const getFriendsVisibleVoicePins = async (userId) => {
+    try {
+        const friendships = await prisma.friendship.findMany({
+            where: {
+                status: 'ACCEPTED',
+                OR: [{ senderId: userId }, { receiverId: userId }]
+            },
+            select: { senderId: true, receiverId: true }
+        })
+
+        const friendIds = friendships.map(f => (f.senderId === userId ? f.receiverId : f.senderId))
+        if (friendIds.length === 0) return { data: [] }
+
+        const voicePins = await prisma.voicePin.findMany({
+            where: { visibility: { in: ['PUBLIC', 'FRIENDS'] }, userId: { in: friendIds } },
+            include: {
+                user: { select: { id: true, username: true, displayName: true, avatar: true } }
+            }
+        })
+
+        return { data: voicePins }
+    } catch (err) {
+        console.log(err.message)
+        throw err
+    }
+}
 
 
 export const getVoicePin = async (userId) => {

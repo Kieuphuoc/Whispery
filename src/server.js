@@ -5,6 +5,8 @@ import cors from 'cors';
 import voiceRoutes from './routes/voiceRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import authRoutes from './routes/authRoutes.js'
+import friendRoutes from './routes/friendRoutes.js'
+import userRoutes from './routes/userRoutes.js'
 const app  = express()
 const PORT = process.env.PORT || 5000
 
@@ -31,3 +33,5 @@ app.use(express.json())
 app.use('/auth', authRoutes)
 app.use('/voice', voiceRoutes)
 app.use('/comment', commentRoutes)
+app.use('/friend', friendRoutes)
+app.use('/user', userRoutes)

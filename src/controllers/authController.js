@@ -5,8 +5,9 @@ import { register as registerService,
 
 export const register = async (req, res) => {
     try {
-        const { username, password } = req.body
-        const data = await registerService(username, password)
+        const { username, password, displayName } = req.body
+        const fileBuffer = req.file?.buffer
+        const data = await registerService(username, password, displayName, fileBuffer)
         return res.status(200).json(data)
     } catch (err) {
         return res.status(400).json({ message: err.message });

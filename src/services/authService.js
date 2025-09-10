@@ -1,16 +1,35 @@
 import prisma from '../prismaClient.js'
+import cloudinary from '../config/cloudinary.js'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
-export const register = async (username, password) => {
+export const register = async (username, password, displayName, fileBuffer) => {
     // Save the new user and hashed password to the db
     const hashedPassword = bcrypt.hashSync(password, 8)
 
     try {
+        let avatarUrl = null
+        if (fileBuffer) {
+            const uploadStream = () => new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    { resource_type: 'image', folder: 'avatars' },
+                    (error, result) => {
+                        if (error) return reject(error)
+                        return resolve(result)
+                    }
+                )
+                stream.end(fileBuffer)
+            })
+            const result = await uploadStream()
+            avatarUrl = result.secure_url
+        }
+
         const user = await prisma.user.create({
             data: {
                 username,
-                password: hashedPassword
+                password: hashedPassword,
+                displayName: displayName ?? null,
+                avatar: avatarUrl
             }
         })
 

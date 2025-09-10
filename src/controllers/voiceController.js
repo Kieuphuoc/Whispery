@@ -4,7 +4,12 @@ import {
     getComment as getCommentService,
     getVoicePin as getVoicePinService,
     updateVoicePin as updateVoicePinService,
- getPublicVoicePin as getPublicVoicePinService
+    getPublicVoicePin as getPublicVoicePinService,
+    getPublicVoicePinByUser as getPublicVoicePinByUserService,
+    getMyPublicVoicePins as getMyPublicVoicePinsService,
+    getFriendsVisibleVoicePins as getFriendsVisibleVoicePinsService,
+    getRetrieveVoicePin as getRetrieveVoicePinService
+
 } from '../services/voiceService.js'
 
 export const createVoicePin = async (req, res) => {
@@ -41,6 +46,50 @@ export const getPublicVoicePin = async (req, res) => {
         return res.status(400).json({ message: err.message })
     }
 }
+
+export const getPublicVoicePinByUser = async (req, res) => {
+    try {
+        const { id } = req.params
+        const data = await getPublicVoicePinByUserService(id)
+        return res.status(200).json(data)
+    } catch (err) {
+        return res.status(400).json({ message: err.message })
+    }
+}
+
+export const getMyPublicVoicePins = async (req, res) => {
+    try {
+        const data = await getMyPublicVoicePinsService(req.userId)
+        return res.status(200).json(data)
+    } catch (err) {
+        return res.status(400).json({ message: err.message })
+    }
+}
+
+
+export const getFriendsVisibleVoicePins = async (req, res) => {
+    try {
+        const data = await getFriendsVisibleVoicePinsService(req.userId)
+        return res.status(200).json(data)
+    } catch (err) {
+        return res.status(400).json({ message: err.message })
+    }
+}
+
+export const getRetrieveVoicePin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const data = await getRetrieveVoicePinService(id);
+
+        if (!data) {
+            return res.status(404).json({ message: 'Voice Pin không tồn tại' });
+        }
+
+        return res.status(200).json(data);
+    } catch (err) {
+        return res.status(400).json({ message: err.message });
+    }
+};
 
 
 // Get Voice Pin from user
