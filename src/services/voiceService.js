@@ -219,8 +219,17 @@ export const getVoicePin = async (userId) => {
     try {
         const voicePin = await prisma.voicePin.findMany({
             where: {
-                userId: userId
-            }
+                userId: userId,
+            },
+            include: {
+                user: {
+                    select: {
+                        username: true,
+                        displayName: true,
+                        avatar: true,
+                    },
+                },
+            },
         })
 
         return { data: voicePin }
