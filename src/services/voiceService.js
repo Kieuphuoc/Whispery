@@ -137,6 +137,7 @@ export const getPublicVoicePin = async () => {
             include: {
                 user: {
                     select: {
+                        userId: true,
                         username: true,
                         avatar: true, 
                         displayName: true,
@@ -219,7 +220,7 @@ export const getVoicePin = async (userId) => {
     try {
         const voicePin = await prisma.voicePin.findMany({
             where: {
-                userId: userId,
+                userId: parseInt(userId),
             },
             include: {
                 user: {
@@ -231,7 +232,6 @@ export const getVoicePin = async (userId) => {
                 },
             },
         })
-
         return { data: voicePin }
     } catch (err) {
         console.log(err.message);
@@ -254,16 +254,15 @@ export const deleteVoicePin = async (voiceId, userId) => {
     }
 }
 
-export const getComment = async (voiceId, userId) => {
+export const getComment = async (voiceId) => {
     try {
         const comments = await prisma.comment.findMany({
             where: {
                 voicePinId: parseInt(voiceId),
-                userId: userId
             }
         });
 
-        return { data: comments };
+        return { comments };
     } catch (err) {
         console.log(err.message);
         throw err

@@ -7,8 +7,7 @@ import { createVoicePin, deleteVoicePin, getComment, getPublicVoicePin, getPubli
 const router = express.Router()
 
 // Get all voice pint for logged-in user
-router.get('/',  authMiddleware, getVoicePin)
-
+router.get('/', authMiddleware, getVoicePin)
 // GET Public VoicePin
 router.get('/public', getPublicVoicePin)
 // GET Public VoicePin of a specific user
@@ -17,7 +16,6 @@ router.get('/user/:id/public', getPublicVoicePinByUser)
 router.get('/me/public', authMiddleware, getMyPublicVoicePins)
 // GET Friends' Public or Friends-Only VoicePins
 router.get('/friends', authMiddleware, getFriendsVisibleVoicePins)
-
 // GET Retrieve VoicePin
 router.get('/:id', getRetrieveVoicePin);
 

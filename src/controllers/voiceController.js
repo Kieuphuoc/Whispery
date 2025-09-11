@@ -95,7 +95,8 @@ export const getRetrieveVoicePin = async (req, res) => {
 // Get Voice Pin from user
 export const getVoicePin = async (req, res) => {
     try {
-        const { userId } = req.userId
+        const userId = req.userId
+        console.log("userId:", userId)
         const data = await getVoicePinService(userId)
         return res.status(200).json(data)
     } catch (err) {
@@ -105,7 +106,7 @@ export const getVoicePin = async (req, res) => {
 
 export const deleteVoicePin = async (req, res) => {
     try {
-        const { userId } = req.userId
+        const userId = req.userId
         const { id } = req.params
         const data = await deleteVoicePinService(id, userId)
         return res.status(204).json(data)
@@ -116,9 +117,8 @@ export const deleteVoicePin = async (req, res) => {
 
 export const getComment = async (req, res) => {
     try {
-        const { userId } = req.userId
         const { id } = req.params
-        const data = await getCommentService(id, userId)
+        const data = await getCommentService(id)
         return res.status(200).json(data)
     } catch (err) {
         return res.status(400).json({ message: err.message })
