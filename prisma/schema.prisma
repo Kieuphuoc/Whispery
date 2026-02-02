@@ -13,38 +13,149 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id         Int        @id @default(autoincrement())
-  username   String     @unique
-  password   String
-  displayName String?
-  avatar     String?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+// ==========================================
+// 1. USER & GAMIFICATION SYSTEM
+// ==========================================
 
-  voicePins  VoicePin[]
-  comments   Comment[]
-  reactions  Reaction[]
+model User {
+  id              Int       @id @default(autoincrement())
+  username        String    @unique
+  email           String    @unique
+  password        String?
+
+  googleId        String?   @unique // For Google log in
+  
+  displayName     String?
+  avatar          String?
+  bio             String?
+
+  // --- Gamification Stats ---
+  level           Int       @default(1)
+  xp              Int       @default(0)
+  scanRadius      Int       @default(1000) // Default scan 1km. Higher level = larger radius.
+  
+  // --- Account Status ---
+  status          UserStatus @default(ACTIVE)
+  
+  // --- Soft Delete ---
+  deletedAt       DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relationships
+  voicePins        VoicePin[]
+  comments         Comment[]
+  reactions        Reaction[]
+  discoveredVoices DiscoveredVoice[] // Hidden voice was found
+  achievements     UserAchievement[]
+  reportsSent      Report[]          @relation("Reporter")
+  viewHistory      VoiceViewHistory[]
+  notifications    Notification[]
+  sessions         Session[]
+  
+  // Social
   friendshipsSent     Friendship[] @relation("friendshipsSent")
   friendshipsReceived Friendship[] @relation("friendshipsReceived")
+
+  @@index([status])
+  @@index([deletedAt])
 }
 
-model VoicePin {
-  id          Int         @id @default(autoincrement())
-  audioUrl    String
-  description String
-  latitude    Float
-  longitude   Float
-  visibility  Visibility
-  listens     Int         @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  DEACTIVATED
+}
 
-  userId      Int
-  user        User        @relation(fields: [userId], references: [id])
-  images      Image[]
-  reactions   Reaction[]
-  comments    Comment[]
+// ==========================================
+// 2. AUTHENTICATION & SESSIONS
+// ==========================================
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  refreshToken String   @unique
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ==========================================
+// 3. CORE CONTENT: VOICE PIN
+// ==========================================
+
+model VoicePin {
+  id              Int       @id @default(autoincrement())
+  audioUrl        String    // Link to audio file
+  content         String?   // Caption/Status
+  
+  // --- Audio Metadata ---
+  audioDuration   Int?      // Duration in seconds
+  audioSize       Int?      // Size in bytes
+  
+  // --- Location & Context ---
+  latitude        Float
+  longitude       Float
+  address         String?
+  
+  // --- Privacy & Mode ---
+  visibility      Visibility @default(PUBLIC)
+  isAnonymous     Boolean    @default(false) // Anonymous mode
+  
+  // --- AR & Hidden Voice Logic  ---
+  type            VoiceType  @default(STANDARD) // STANDARD or HIDDEN_AR
+  unlockRadius    Int        @default(0)        // If Hidden, need to be close to how many meters (e.g: 50m)
+  
+  // --- AI & Emotion Data ---
+  emotionLabel    String?    // Ex: "Happy", "Sad", "Nostalgic"
+  emotionScore    Float?     // Point to calculate average
+  stickerUrl      String?    // Sticker AI automatically attached
+
+  // --- Device Metadata ---
+  deviceModel     String?    // Ex: "iPhone 14 Pro"
+  osVersion       String?    // Ex: "iOS 16.2"
+
+  // --- Stats (Denormalized for Performance) ---
+  listensCount    Int       @default(0)
+  reactionsCount  Int       @default(0)
+  commentsCount   Int       @default(0)
+
+  // --- Soft Delete ---
+  deletedAt       DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  userId          Int
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  comments        Comment[]
+  reactions       Reaction[]
+  discoveries     DiscoveredVoice[] // Who discovered this voice
+  reports         Report[]          @relation("ReportedVoice")
+  images          Image[]    
+  viewHistory     VoiceViewHistory[]     
+
+  @@index([userId])
+  @@index([latitude, longitude]) // Index for scanning within radius
+  @@index([emotionLabel])        // Index for filtering by emotion
+  @@index([visibility])
+  @@index([deletedAt])
+  @@index([createdAt])
+}
+
+enum VoiceType {
+  STANDARD
+  HIDDEN_AR
 }
 
 model Image {
@@ -53,33 +164,70 @@ model Image {
   createdAt  DateTime  @default(now())
 
   voicePinId Int
-  voicePin   VoicePin  @relation(fields: [voicePinId], references: [id])
+  voicePin   VoicePin  @relation(fields: [voicePinId], references: [id], onDelete: Cascade)
+
+  @@index([voicePinId])
 }
 
+// ==========================================
+// 4. SOCIAL INTERACTIONS
+// ==========================================
+
 model Reaction {
-  id         Int       @id @default(autoincrement())
-  name       String
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id         Int          @id @default(autoincrement())
+  type       ReactionType
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
   userId     Int
-  user       User      @relation(fields: [userId], references: [id])
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   voicePinId Int
-  voicePin   VoicePin  @relation(fields: [voicePinId], references: [id])
+  voicePin   VoicePin     @relation(fields: [voicePinId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, voicePinId]) // Each user can only react once to a voice pin
+  @@index([voicePinId])
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  LAUGH
+  SAD
+  WOW
+  ANGRY
 }
 
 model Comment {
-  id         Int       @id @default(autoincrement())
-  content    String
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id          Int       @id @default(autoincrement())
+  content     String
+  audioUrl    String?
+  
+  // --- Audio Metadata (if voice comment) ---
+  audioDuration Int?    // Duration in seconds
+  audioSize     Int?    // Size in bytes
 
-  userId     Int
-  user       User      @relation(fields: [userId], references: [id])
+  // --- Soft Delete ---
+  deletedAt   DateTime?
 
-  voicePinId Int
-  voicePin   VoicePin  @relation(fields: [voicePinId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  voicePinId  Int
+  voicePin    VoicePin  @relation(fields: [voicePinId], references: [id], onDelete: Cascade)
+
+  // --- Threaded Comments (Replies) ---
+  parentId    Int?
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[] @relation("CommentReplies")
+
+  @@index([voicePinId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([deletedAt])
 }
 
 enum Visibility {
@@ -87,6 +235,60 @@ enum Visibility {
   PUBLIC
   FRIENDS
 }
+
+// ==========================================
+// 5. GAMIFICATION & UNLOCKS
+// ==========================================
+
+// Table to save the history of users who have "discovered" hidden voices 
+model DiscoveredVoice {
+  id          Int       @id @default(autoincrement())
+  discoveredAt DateTime @default(now())
+  
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  voicePinId  Int
+  voicePin    VoicePin  @relation(fields: [voicePinId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, voicePinId])
+  @@index([userId])
+  @@index([voicePinId])
+}
+
+model Achievement {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique // Ex: "Explorer Beginner"
+  description String
+  iconUrl     String
+  xpReward    Int       @default(0)  // XP granted when achievement unlocked
+  condition   Json?     // Logic check achievement (e.g: { "voice_count": 10 })
+  
+  users       UserAchievement[]
+}
+
+model UserAchievement {
+  userId        Int
+  achievementId Int
+  earnedAt      DateTime @default(now())
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@id([userId, achievementId])
+}
+
+// Level thresholds and rewards configuration
+model LevelThreshold {
+  level       Int  @id
+  requiredXp  Int           // XP needed to reach this level
+  scanRadius  Int           // Scan radius unlocked at this level (in meters)
+  title       String?       // Optional title for this level (e.g., "Explorer", "Master")
+}
+
+// ==========================================
+// 6. FRIENDSHIP
+// ==========================================
 
 model Friendship {
   id         Int                   @id @default(autoincrement())
@@ -96,14 +298,113 @@ model Friendship {
   createdAt  DateTime              @default(now())
   updatedAt  DateTime              @updatedAt
 
-  sender     User                  @relation("friendshipsSent", fields: [senderId], references: [id])
-  receiver   User                  @relation("friendshipsReceived", fields: [receiverId], references: [id])
+  sender     User                  @relation("friendshipsSent", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User                  @relation("friendshipsReceived", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
 }
 
 enum FriendRequestStatus {
   PENDING
   ACCEPTED
   REJECTED
+  BLOCKED
+}
+
+// ==========================================
+// 7. NOTIFICATIONS
+// ==========================================
+
+model Notification {
+  id          Int              @id @default(autoincrement())
+  type        NotificationType
+  isRead      Boolean          @default(false)
+  data        Json?            // Flexible payload (e.g., { voicePinId, senderId, commentId })
+  createdAt   DateTime         @default(now())
+
+  userId      Int
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+enum NotificationType {
+  NEW_REACTION
+  NEW_COMMENT
+  COMMENT_REPLY
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  ACHIEVEMENT_EARNED
+  VOICE_DISCOVERED
+  LEVEL_UP
+  SYSTEM_MESSAGE
+}
+
+// ==========================================
+// 8. REPORTING & MODERATION
+// ==========================================
+
+model Report {
+  id          Int          @id @default(autoincrement())
+  reason      ReportReason
+  description String?      // Additional details from reporter
+  status      ReportStatus @default(PENDING)
+  
+  // --- Moderation Response ---
+  moderatorNote String?    // Internal note from moderator
+  resolvedAt    DateTime?  // When the report was resolved
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  reporterId  Int
+  reporter    User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  voicePinId  Int
+  voicePin    VoicePin     @relation("ReportedVoice", fields: [voicePinId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([reporterId])
+  @@index([voicePinId])
+  @@index([createdAt])
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  VIOLENCE
+  NUDITY
+  MISINFORMATION
+  COPYRIGHT
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+// ==========================================
+// 9. USER EXPERIENCE & HISTORY
+// ==========================================
+
+model VoiceViewHistory {
+  id         Int      @id @default(autoincrement())
+  viewedAt   DateTime @default(now()) // Show x number of the latest viewed   
+
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  voicePinId Int
+  voicePin   VoicePin @relation(fields: [voicePinId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, voicePinId]) 
+  @@index([userId, viewedAt])
 }
