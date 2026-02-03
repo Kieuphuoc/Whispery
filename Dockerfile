@@ -5,16 +5,22 @@ FROM node:22-alpine
 WORKDIR /app
 
 # Copy the package.json and the package-lock.json files to the container
-COPY package*.json .
+COPY package*.json ./
 
-# Install the independences
+# Install the dependencies
 RUN npm install 
 
 # Copy the rest of the application code
 COPY . .
 
+# Generate Prisma client
+RUN npx prisma generate
+
+# Build TypeScript
+RUN npm run build
+
 # Expose the port that the app runs on
 EXPOSE 5000
 
 # Define the command to run your application
-CMD ["node", "./src/server.js"]
+CMD ["node", "dist/server.js"]
