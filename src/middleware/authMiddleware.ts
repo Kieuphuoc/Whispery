@@ -16,3 +16,16 @@ export const authenticate: RequestHandler = (req, res, next) => {
         next();
     })(req, res, next);
 };
+
+// Optional authentication - sets user if valid token, continues without user otherwise
+export const optionalAuthenticate: RequestHandler = (req, res, next) => {
+    passport.authenticate('jwt', { session: false }, (err: Error | null, user: Express.User | false) => {
+        if (err) {
+            return next();
+        }
+        if (user) {
+            req.user = user;
+        }
+        next();
+    })(req, res, next);
+};

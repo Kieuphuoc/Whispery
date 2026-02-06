@@ -1149,3 +1149,238 @@ export const getComment: RequestHandler = async (req, res): Promise<void> => {
         res.status(400).json({ message: error.message });
     }
 };
+
+/**
+ * @swagger
+ * /voice/{id}/discover:
+ *   post:
+ *     summary: Discover a hidden voice pin
+ *     description: Marks a hidden (HIDDEN_AR type) voice pin as discovered by the current user. Awards XP to both the discoverer and the voice pin owner.
+ *     tags: [VoicePin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Voice pin ID
+ *         example: 10
+ *     responses:
+ *       200:
+ *         description: Voice pin discovered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Voice pin discovered!"
+ *                 discoveredVoice:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     discoveredAt:
+ *                       type: string
+ *                       format: date-time
+ *                     userId:
+ *                       type: integer
+ *                     voicePinId:
+ *                       type: integer
+ *                 xpAwarded:
+ *                   type: integer
+ *                   description: XP awarded for the discovery
+ *                   example: 50
+ *       400:
+ *         description: Voice pin is not hidden type or already discovered
+ *       404:
+ *         description: Voice pin not found
+ *       401:
+ *         description: Unauthorized
+ */
+export const discoverVoice: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const userId = (req.user as { id: number }).id;
+        const voicePinId = Number(req.params.id);
+
+        // Check if voice pin exists and is HIDDEN_AR type
+        const voicePin = await prisma.voicePin.findUnique({
+            where: { id: voicePinId, deletedAt: null }
+        });
+
+        if (!voicePin) {
+            res.status(404).json({ message: 'Voice pin not found' });
+            return;
+        }
+
+        if (voicePin.type !== VoiceType.HIDDEN_AR) {
+            res.status(400).json({ message: 'This voice pin is not a hidden voice' });
+            return;
+        }
+
+        // Cannot discover own voice pin
+        if (voicePin.userId === userId) {
+            res.status(400).json({ message: 'Cannot discover your own voice pin' });
+            return;
+        }
+
+        // Check if already discovered
+        const existing = await prisma.discoveredVoice.findUnique({
+            where: {
+                userId_voicePinId: { userId, voicePinId }
+            }
+        });
+
+        if (existing) {
+            res.status(400).json({ message: 'You have already discovered this voice pin' });
+            return;
+        }
+
+        // Create discovery record and award XP
+        const xpReward = 50; // Base XP for discovering hidden voice
+
+        const [discoveredVoice] = await prisma.$transaction([
+            prisma.discoveredVoice.create({
+                data: { userId, voicePinId }
+            }),
+            // Award XP to discoverer
+            prisma.user.update({
+                where: { id: userId },
+                data: { xp: { increment: xpReward } }
+            }),
+            // Award XP to voice pin owner
+            prisma.user.update({
+                where: { id: voicePin.userId },
+                data: { xp: { increment: Math.floor(xpReward / 2) } }
+            })
+        ]);
+
+        res.status(200).json({
+            message: 'Voice pin discovered!',
+            discoveredVoice,
+            xpAwarded: xpReward
+        });
+    } catch (err) {
+        const error = err as Error;
+        res.status(400).json({ message: error.message });
+    }
+};
+
+/**
+ * @swagger
+ * /voice/{id}/discoverers:
+ *   get:
+ *     summary: Get users who discovered a hidden voice pin
+ *     description: Returns a list of users who have discovered a specific hidden voice pin, sorted by discovery time.
+ *     tags: [VoicePin]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Voice pin ID
+ *         example: 10
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of discoverers per page
+ *     responses:
+ *       200:
+ *         description: List of discoverers
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 discoverers:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       discoveredAt:
+ *                         type: string
+ *                         format: date-time
+ *                       user:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           username:
+ *                             type: string
+ *                           displayName:
+ *                             type: string
+ *                           avatar:
+ *                             type: string
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *       404:
+ *         description: Voice pin not found
+ *       400:
+ *         description: Bad request
+ */
+export const getDiscoverers: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const voicePinId = Number(req.params.id);
+        const page = Math.max(1, Number(req.query.page) || 1);
+        const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+        const skip = (page - 1) * limit;
+
+        // Verify voice pin exists
+        const voicePin = await prisma.voicePin.findUnique({
+            where: { id: voicePinId, deletedAt: null }
+        });
+
+        if (!voicePin) {
+            res.status(404).json({ message: 'Voice pin not found' });
+            return;
+        }
+
+        const [discoverers, total] = await Promise.all([
+            prisma.discoveredVoice.findMany({
+                where: { voicePinId },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            username: true,
+                            displayName: true,
+                            avatar: true
+                        }
+                    }
+                },
+                orderBy: { discoveredAt: 'asc' },
+                skip,
+                take: limit
+            }),
+            prisma.discoveredVoice.count({ where: { voicePinId } })
+        ]);
+
+        res.status(200).json({
+            discoverers,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
+        });
+    } catch (err) {
+        const error = err as Error;
+        res.status(400).json({ message: error.message });
+    }
+};

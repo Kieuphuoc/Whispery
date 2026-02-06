@@ -11,7 +11,9 @@ import {
     getVoicePin,
     updateVoicePin,
     getMyPublicVoicePins,
-    getFriendsVisibleVoicePins
+    getFriendsVisibleVoicePins,
+    discoverVoice,
+    getDiscoverers
 } from '../controllers/voiceController.js';
 
 const router = express.Router();
@@ -40,5 +42,11 @@ router.delete('/:id', authenticate, deleteVoicePin);
 
 // GET all comments of a voice pin
 router.get('/:id/comment', getComment);
+
+// Discover a hidden voice pin
+router.post('/:id/discover', authenticate, discoverVoice);
+
+// Get discoverers of a voice pin
+router.get('/:id/discoverers', getDiscoverers);
 
 export default router;

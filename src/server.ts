@@ -12,6 +12,9 @@ import commentRoutes from './routes/commentRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import friendRoutes from './routes/friendRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import reactionRoutes from './routes/reactionRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -42,6 +45,9 @@ app.use('/voice', voiceRoutes);
 app.use('/comment', commentRoutes);
 app.use('/friend', friendRoutes);
 app.use('/user', userRoutes);
+app.use('/reaction', reactionRoutes);
+app.use('/notification', notificationRoutes);
+app.use('/report', reportRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
