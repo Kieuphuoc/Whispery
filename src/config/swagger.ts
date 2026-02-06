@@ -24,7 +24,13 @@ const options: swaggerJsdoc.Options = {
             }
         }
     },
-    apis: ['./src/routes/*.ts', './src/controllers/*.ts']
+    // Include both TS (dev) and JS (prod/Docker) paths for swagger-jsdoc to find annotations
+    apis: [
+        './src/routes/*.ts',
+        './src/controllers/*.ts',
+        './dist/routes/*.js',
+        './dist/controllers/*.js'
+    ]
 };
 
 export const swaggerSpec = swaggerJsdoc(options);

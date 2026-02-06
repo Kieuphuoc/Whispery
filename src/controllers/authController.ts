@@ -32,6 +32,46 @@ import cloudinary from '../config/cloudinary.js';
  *     responses:
  *       200:
  *         description: Registration successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   description: JWT authentication token
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     username:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     displayName:
+ *                       type: string
+ *                       nullable: true
+ *                     avatar:
+ *                       type: string
+ *                       nullable: true
+ *                     bio:
+ *                       type: string
+ *                       nullable: true
+ *                     level:
+ *                       type: integer
+ *                     xp:
+ *                       type: integer
+ *                     scanRadius:
+ *                       type: integer
+ *                     status:
+ *                       type: string
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
  *       400:
  *         description: Registration failed
  */
@@ -64,11 +104,25 @@ export const register: RequestHandler = async (req, res): Promise<void> => {
                 password: hashedPassword,
                 displayName: displayName ?? null,
                 avatar: avatarUrl
+            },
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                displayName: true,
+                avatar: true,
+                bio: true,
+                level: true,
+                xp: true,
+                scanRadius: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true
             }
         });
 
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '24h' });
-        res.status(200).json({ token });
+        res.status(200).json({ token, user });
     } catch (err) {
         const error = err as Error;
         res.status(400).json({ message: error.message });
@@ -98,6 +152,50 @@ export const register: RequestHandler = async (req, res): Promise<void> => {
  *     responses:
  *       200:
  *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   description: JWT authentication token
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     username:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     displayName:
+ *                       type: string
+ *                       nullable: true
+ *                     avatar:
+ *                       type: string
+ *                       nullable: true
+ *                     bio:
+ *                       type: string
+ *                       nullable: true
+ *                     level:
+ *                       type: integer
+ *                     xp:
+ *                       type: integer
+ *                     scanRadius:
+ *                       type: integer
+ *                     status:
+ *                       type: string
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     deletedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
  *       400:
  *         description: Login failed
  */
@@ -120,8 +218,11 @@ export const login: RequestHandler = async (req, res): Promise<void> => {
             return;
         }
 
+        // Return user data without password
+        const { password: _, ...userWithoutPassword } = user;
+
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '24h' });
-        res.status(200).json({ token, user });
+        res.status(200).json({ token, user: userWithoutPassword });
     } catch (err) {
         const error = err as Error;
         res.status(400).json({ message: error.message });
