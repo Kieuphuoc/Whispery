@@ -78,6 +78,7 @@ import cloudinary from '../config/cloudinary.js';
 export const register: RequestHandler = async (req, res): Promise<void> => {
     try {
         const { username, password, displayName } = req.body;
+        console.log(`[Auth/Register] Attempt to register username: ${username}`);
         const fileBuffer = req.file?.buffer;
 
         const hashedPassword = bcrypt.hashSync(password, 8);
@@ -122,9 +123,11 @@ export const register: RequestHandler = async (req, res): Promise<void> => {
         });
 
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '24h' });
+        console.log(`[Auth/Register] Successfully registered & logged in username: ${user.username} (ID: ${user.id})`);
         res.status(200).json({ token, user });
     } catch (err) {
         const error = err as Error;
+        console.error(`[Auth/Register] Error:`, error.message);
         res.status(400).json({ message: error.message });
     }
 };
@@ -202,18 +205,21 @@ export const register: RequestHandler = async (req, res): Promise<void> => {
 export const login: RequestHandler = async (req, res): Promise<void> => {
     try {
         const { username, password } = req.body;
+        console.log(`[Auth/Login] Attempt to login username: ${username}`);
 
         const user = await prisma.user.findUnique({
             where: { username }
         });
 
         if (!user || !user.password) {
+            console.log(`[Auth/Login] Failed: Cannot find user or password not set for username: ${username}`);
             res.status(400).json({ message: 'Invalid username or password' });
             return;
         }
 
         const passwordIsValid = bcrypt.compareSync(password, user.password);
         if (!passwordIsValid) {
+            console.log(`[Auth/Login] Failed: Invalid password for username: ${username}`);
             res.status(400).json({ message: 'Invalid username or password' });
             return;
         }
@@ -222,9 +228,11 @@ export const login: RequestHandler = async (req, res): Promise<void> => {
         const { password: _, ...userWithoutPassword } = user;
 
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '24h' });
+        console.log(`[Auth/Login] Successfully logged in username: ${user.username} (ID: ${user.id})`);
         res.status(200).json({ token, user: userWithoutPassword });
     } catch (err) {
         const error = err as Error;
+        console.error(`[Auth/Login] Error:`, error.message);
         res.status(400).json({ message: error.message });
     }
 };

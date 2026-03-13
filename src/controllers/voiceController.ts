@@ -1384,3 +1384,107 @@ export const getDiscoverers: RequestHandler = async (req, res): Promise<void> =>
         res.status(400).json({ message: error.message });
     }
 };
+
+/**
+ * @swagger
+ * /voice/random:
+ *   get:
+ *     summary: Discover a random nearby voice pin
+ *     description: Returns a random public voice pin within a specified radius that was not created by the current user.
+ *     tags: [VoicePin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: lat
+ *         required: true
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: lng
+ *         required: true
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: radius
+ *         schema:
+ *           type: number
+ *           default: 5
+ *         description: Radius in kilometers
+ *     responses:
+ *       200:
+ *         description: A random voice pin found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   $ref: '#/components/schemas/VoicePin'
+ *       404:
+ *         description: No voice pins found in radius
+ *       400:
+ *         description: Bad request
+ */
+export const getRandomVoicePin: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const queryLat = req.query.lat as string;
+        const queryLng = req.query.lng as string;
+        const queryRadius = req.query.radius as string;
+
+        const lat = parseFloat(queryLat);
+        const lng = parseFloat(queryLng);
+        const radiusKm = parseFloat(queryRadius) || 5;
+        const userId = req.user ? (req.user as any).id : null;
+
+        if (isNaN(lat) || isNaN(lng)) {
+            console.error('Invalid coordinates received:', { queryLat, queryLng });
+            res.status(400).json({ message: 'Tọa độ không hợp lệ. Vui lòng bật định vị.' });
+            return;
+        }
+
+        // 1 degree latitude is approx 111km
+        const latDelta = radiusKm / 111;
+        // 1 degree longitude is approx 111km * cos(latitude)
+        const lngDelta = radiusKm / (111 * Math.cos(lat * Math.PI / 180));
+
+        console.log('Searching for voices at:', { lat, lng, radiusKm, userId });
+
+        const voicePins = await prisma.voicePin.findMany({
+            where: {
+                visibility: 'PUBLIC',
+                deletedAt: null,
+                userId: userId ? { not: parseInt(userId.toString()) } : undefined,
+                latitude: {
+                    gte: lat - latDelta,
+                    lte: lat + latDelta,
+                },
+                longitude: {
+                    gte: lng - lngDelta,
+                    lte: lng + lngDelta,
+                }
+            },
+            include: {
+                user: { select: { id: true, username: true, avatar: true, displayName: true } },
+                images: true
+            }
+        });
+
+        if (voicePins.length === 0) {
+            res.status(404).json({ message: 'No nearby voices found. Try expanding your search!' });
+            return;
+        }
+
+        // Randomly pick one
+        const randomIndex = Math.floor(Math.random() * voicePins.length);
+        const randomPin = voicePins[randomIndex];
+
+        res.status(200).json({ data: randomPin });
+    } catch (err: any) {
+        console.error('Discovery Error:', err);
+        res.status(400).json({
+            message: err.message || 'Error discovering voices',
+            error: process.env.NODE_ENV === 'development' ? err : undefined
+        });
+    }
+};

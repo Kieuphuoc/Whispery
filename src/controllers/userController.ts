@@ -968,3 +968,64 @@ export const searchUsers: RequestHandler = async (req, res): Promise<void> => {
         res.status(400).json({ message: error.message });
     }
 };
+
+/**
+ * @swagger
+ * /user/me/password:
+ *   put:
+ *     summary: Change user password
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - oldPassword
+ *               - newPassword
+ *             properties:
+ *               oldPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Invalid old password or other error
+ */
+export const changePassword: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        const userId = req.user!.id;
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
+        if (!user || !user.password) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+
+        const isMatch = await import('bcryptjs').then(bcrypt => bcrypt.default.compareSync(oldPassword, user.password!));
+        if (!isMatch) {
+            res.status(400).json({ message: 'Mật khẩu cũ không chính xác' });
+            return;
+        }
+
+        const hashedPassword = await import('bcryptjs').then(bcrypt => bcrypt.default.hashSync(newPassword, 8));
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword }
+        });
+
+        res.status(200).json({ message: 'Đổi mật khẩu thành công' });
+    } catch (err) {
+        const error = err as Error;
+        res.status(400).json({ message: error.message });
+    }
+};
