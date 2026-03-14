@@ -1,6 +1,6 @@
 import { Request, Response, RequestHandler } from 'express';
 import prisma from '../prismaClient.js';
-import cloudinary from '../config/cloudinary.js';
+import { uploadToAzure } from '../config/azureStorage.js';
 
 /**
  * @swagger
@@ -190,27 +190,22 @@ export const createComment: RequestHandler = async (req, res): Promise<void> => 
     try {
         const { content, voicePinId, parentId, audioDuration, audioSize } = req.body;
         const userId = req.user!.id;
-        const fileBuffer = req.file?.buffer;
+        const file = req.file;
 
         // Validate: need either content or audio
-        if (!content && !fileBuffer) {
+        if (!content && (!file || !file.buffer)) {
             res.status(400).json({ message: 'Content or audio file is required' });
             return;
         }
 
         let audioUrl: string | undefined;
-        if (fileBuffer) {
-            const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
-                const uploadStream = cloudinary.uploader.upload_stream(
-                    { resource_type: 'auto', folder: 'comments' },
-                    (error, result) => {
-                        if (result) resolve(result as { secure_url: string });
-                        else reject(error);
-                    }
-                );
-                uploadStream.end(fileBuffer);
-            });
-            audioUrl = result.secure_url;
+        if (file && file.buffer) {
+            audioUrl = await uploadToAzure(
+                file.buffer,
+                file.originalname,
+                file.mimetype,
+                'comments'
+            );
         }
 
         // Check if voice pin exists and is not deleted

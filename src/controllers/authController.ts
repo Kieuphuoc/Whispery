@@ -2,7 +2,7 @@ import { Request, Response, RequestHandler } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../prismaClient.js';
-import cloudinary from '../config/cloudinary.js';
+import { uploadToAzure } from '../config/azureStorage.js';
 
 /**
  * @swagger
@@ -79,23 +79,18 @@ export const register: RequestHandler = async (req, res): Promise<void> => {
     try {
         const { username, password, displayName } = req.body;
         console.log(`[Auth/Register] Attempt to register username: ${username}`);
-        const fileBuffer = req.file?.buffer;
+        const file = req.file;
 
         const hashedPassword = bcrypt.hashSync(password, 8);
 
         let avatarUrl: string | null = null;
-        if (fileBuffer) {
-            const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
-                const stream = cloudinary.uploader.upload_stream(
-                    { resource_type: 'image', folder: 'avatars' },
-                    (error, result) => {
-                        if (error) return reject(error);
-                        return resolve(result as { secure_url: string });
-                    }
-                );
-                stream.end(fileBuffer);
-            });
-            avatarUrl = result.secure_url;
+        if (file && file.buffer) {
+            avatarUrl = await uploadToAzure(
+                file.buffer,
+                file.originalname,
+                file.mimetype,
+                'avatars'
+            );
         }
 
         const user = await prisma.user.create({

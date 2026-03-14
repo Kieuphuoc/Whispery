@@ -11,6 +11,7 @@ const upload = multer({
         const allowedTypes = [
             // Images
             'image/jpeg',
+            'image/jpg',
             'image/png',
             'image/webp',
             // Audio
@@ -19,6 +20,7 @@ const upload = multer({
             'audio/x-wav',
             'audio/mp4',      // .m4a, .mp4
             'audio/x-m4a',    // .m4a
+            'audio/m4a',      // .m4a
             'audio/ogg',      // .ogg
             'audio/webm',
             'video/mp4'       // .webm

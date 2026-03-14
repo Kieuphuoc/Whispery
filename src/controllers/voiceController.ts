@@ -1,6 +1,6 @@
 import { Request, Response, RequestHandler } from 'express';
 import prisma from '../prismaClient.js';
-import cloudinary from '../config/cloudinary.js';
+import { uploadToAzure } from '../config/azureStorage.js';
 import { Visibility, VoiceType } from '@prisma/client';
 
 /**
@@ -302,7 +302,11 @@ import { Visibility, VoiceType } from '@prisma/client';
  */
 export const createVoicePin: RequestHandler = async (req, res): Promise<void> => {
     try {
-        const fileBuffer = req.file?.buffer;
+        console.log("createVoicePin: Start (upload.fields)");
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        const audioFile = files?.['file']?.[0];
+        const imageFiles = files?.['images'] || [];
+
         const userId = req.user!.id;
         const {
             description,
@@ -310,7 +314,6 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
             longitude,
             visibility,
             images,
-            // New fields
             audioDuration,
             audioSize,
             address,
@@ -324,56 +327,80 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
             osVersion
         } = req.body;
 
-        if (!fileBuffer) {
+        console.log("createVoicePin: body check", { description, latitude, longitude, hasImagesBody: !!images });
+
+        if (!audioFile) {
+            console.log("createVoicePin: No audio file found in fields");
             res.status(400).json({ message: 'Audio file is required' });
             return;
         }
 
-        const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
-            const uploadStream = cloudinary.uploader.upload_stream(
-                { resource_type: 'auto', folder: 'voicepin' },
-                (error, result) => {
-                    if (result) resolve(result as { secure_url: string });
-                    else reject(error);
-                }
-            );
-            uploadStream.end(fileBuffer);
-        });
+        console.log("createVoicePin: Uploading audio...");
+        const audioUrl = await uploadToAzure(
+            audioFile.buffer,
+            audioFile.originalname,
+            audioFile.mimetype,
+            'voicepin'
+        );
+        console.log("createVoicePin: Audio uploaded", audioUrl);
 
+        const uploadedImageUrls: string[] = [];
+        if (imageFiles.length > 0) {
+            console.log(`createVoicePin: Uploading ${imageFiles.length} images...`);
+            for (const file of imageFiles) {
+                const url = await uploadToAzure(
+                    file.buffer,
+                    file.originalname,
+                    file.mimetype,
+                    'voicepins/images'
+                );
+                uploadedImageUrls.push(url);
+            }
+            console.log("createVoicePin: Images uploaded", uploadedImageUrls);
+        }
+
+        let existingImages = [];
+        try {
+            existingImages = JSON.parse(images || '[]');
+        } catch (e) {
+            console.warn("createVoicePin: Failed to parse images body as JSON, using as is if string", images);
+            if (images && typeof images === 'string' && images !== 'undefined') {
+                existingImages = [images];
+            }
+        }
+        const allImageUrls = [...existingImages, ...uploadedImageUrls];
+
+        console.log("createVoicePin: Creating prisma record...");
         const voicePin = await prisma.voicePin.create({
             data: {
-                audioUrl: result.secure_url,
+                audioUrl,
                 content: description || null,
                 latitude: parseFloat(latitude),
                 longitude: parseFloat(longitude),
                 visibility: visibility || Visibility.PUBLIC,
                 userId,
-                // Audio metadata
                 audioDuration: audioDuration ? parseInt(audioDuration) : null,
                 audioSize: audioSize ? parseInt(audioSize) : null,
-                // Location
                 address: address || null,
-                // Privacy & Mode
                 isAnonymous: isAnonymous === 'true' || isAnonymous === true,
                 type: type || VoiceType.STANDARD,
                 unlockRadius: unlockRadius ? parseInt(unlockRadius) : 0,
-                // AI & Emotion data
                 emotionLabel: emotionLabel || null,
                 emotionScore: emotionScore ? parseFloat(emotionScore) : null,
                 stickerUrl: stickerUrl || null,
-                // Device metadata
                 deviceModel: deviceModel || null,
                 osVersion: osVersion || null,
-                // Images relation
                 images: {
-                    create: JSON.parse(images || '[]').map((url: string) => ({ imageUrl: url }))
+                    create: allImageUrls.map((url: string) => ({ imageUrl: url }))
                 }
             },
             include: { images: true }
         });
 
+        console.log("createVoicePin: Success", voicePin.id);
         res.status(200).json({ data: voicePin });
     } catch (err) {
+        console.error("createVoicePin: Error", err);
         const error = err as Error;
         res.status(400).json({ message: error.message });
     }
@@ -496,7 +523,11 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
 export const updateVoicePin: RequestHandler = async (req, res): Promise<void> => {
     try {
         const id = req.params.id as string;
-        const fileBuffer = req.file?.buffer;
+        console.log(`updateVoicePin: Start (id: ${id}, upload.fields)`);
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        const audioFile = files?.['file']?.[0];
+        const imageFiles = files?.['images'] || [];
+
         const userId = req.user!.id;
         const {
             description,
@@ -504,7 +535,6 @@ export const updateVoicePin: RequestHandler = async (req, res): Promise<void> =>
             longitude,
             visibility,
             images,
-            // New fields
             audioDuration,
             audioSize,
             address,
@@ -519,21 +549,17 @@ export const updateVoicePin: RequestHandler = async (req, res): Promise<void> =>
         } = req.body;
 
         let audioUrl: string | undefined;
-        if (fileBuffer) {
-            const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
-                const stream = cloudinary.uploader.upload_stream(
-                    { resource_type: 'video', folder: 'voicepin' },
-                    (error, result) => {
-                        if (result) resolve(result as { secure_url: string });
-                        else reject(error);
-                    }
-                );
-                stream.end(fileBuffer);
-            });
-            audioUrl = result.secure_url;
+        if (audioFile) {
+            console.log("updateVoicePin: Uploading new audio...");
+            audioUrl = await uploadToAzure(
+                audioFile.buffer,
+                audioFile.originalname,
+                audioFile.mimetype,
+                'voicepin'
+            );
+            console.log("updateVoicePin: New audio uploaded", audioUrl);
         }
 
-        // Build update data object with only provided fields
         const updateData: Record<string, unknown> = {};
 
         if (audioUrl) updateData.audioUrl = audioUrl;
@@ -553,22 +579,47 @@ export const updateVoicePin: RequestHandler = async (req, res): Promise<void> =>
         if (deviceModel !== undefined) updateData.deviceModel = deviceModel || null;
         if (osVersion !== undefined) updateData.osVersion = osVersion || null;
 
-        // Handle images if provided
-        if (images) {
+        if (images || imageFiles.length > 0) {
+            console.log("updateVoicePin: Processing images...");
+            const uploadedImageUrls: string[] = [];
+            for (const file of imageFiles) {
+                const url = await uploadToAzure(
+                    file.buffer,
+                    file.originalname,
+                    file.mimetype,
+                    'voicepins/images'
+                );
+                uploadedImageUrls.push(url);
+            }
+
+            let existingImages = [];
+            try {
+                existingImages = JSON.parse(images || '[]');
+            } catch (e) {
+                console.warn("updateVoicePin: Failed to parse images body as JSON", images);
+                if (images && typeof images === 'string' && images !== 'undefined') {
+                    existingImages = [images];
+                }
+            }
+            const allImageUrls = [...existingImages, ...uploadedImageUrls];
+
             updateData.images = {
                 deleteMany: {},
-                create: JSON.parse(images).map((url: string) => ({ imageUrl: url }))
+                create: allImageUrls.map((url: string) => ({ imageUrl: url }))
             };
         }
 
+        console.log("updateVoicePin: Updating prisma record...");
         const voicePin = await prisma.voicePin.update({
             where: { id: parseInt(id), userId, deletedAt: null },
             data: updateData,
             include: { images: true }
         });
 
+        console.log("updateVoicePin: Success", voicePin.id);
         res.status(200).json({ data: voicePin });
     } catch (err) {
+        console.error("updateVoicePin: Error", err);
         const error = err as Error;
         res.status(400).json({ message: error.message });
     }

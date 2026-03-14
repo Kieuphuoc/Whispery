@@ -1,6 +1,6 @@
 import { Request, Response, RequestHandler } from 'express';
 import prisma from '../prismaClient.js';
-import cloudinary from '../config/cloudinary.js';
+import { uploadToAzure } from '../config/azureStorage.js';
 import { UserStatus } from '@prisma/client';
 
 /**
@@ -27,7 +27,7 @@ import { UserStatus } from '@prisma/client';
  *         avatar:
  *           type: string
  *           nullable: true
- *           example: "https://res.cloudinary.com/xxx/avatar.jpg"
+ *           example: "https://whisper.blob.core.windows.net/whisper/avatars/avatar.jpg"
  *         bio:
  *           type: string
  *           nullable: true
@@ -147,7 +147,7 @@ import { UserStatus } from '@prisma/client';
  *               example: "Discover your first hidden voice pin"
  *             iconUrl:
  *               type: string
- *               example: "https://res.cloudinary.com/xxx/achievement.png"
+ *               example: "https://whisper.blob.core.windows.net/whisper/achievements/achievement.png"
  *             xpReward:
  *               type: integer
  *               example: 50
@@ -587,20 +587,16 @@ export const updateAvatar: RequestHandler = async (req, res): Promise<void> => {
             return;
         }
 
-        const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-                { resource_type: 'image', folder: 'avatars' },
-                (error, result) => {
-                    if (error) return reject(error);
-                    return resolve(result as { secure_url: string });
-                }
-            );
-            stream.end(req.file!.buffer);
-        });
+        const avatarUrl = await uploadToAzure(
+            req.file.buffer,
+            req.file.originalname,
+            req.file.mimetype,
+            'avatars'
+        );
 
         const updated = await prisma.user.update({
             where: { id: req.user!.id, deletedAt: null },
-            data: { avatar: result.secure_url },
+            data: { avatar: avatarUrl },
             select: {
                 id: true,
                 username: true,

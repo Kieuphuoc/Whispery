@@ -36,10 +36,10 @@ router.get('/friends', authenticate, getFriendsVisibleVoicePins);
 router.get('/:id', getRetrieveVoicePin);
 
 // Create a new Voice Pin
-router.post('/', authenticate, upload.single('file'), createVoicePin);
+router.post('/', authenticate, upload.fields([{ name: 'file', maxCount: 1 }, { name: 'images', maxCount: 10 }]), createVoicePin);
 
 // Update a Voice Pin
-router.put('/:id', authenticate, upload.single('file'), updateVoicePin);
+router.put('/:id', authenticate, upload.fields([{ name: 'file', maxCount: 1 }, { name: 'images', maxCount: 10 }]), updateVoicePin);
 
 // Delete a Voice Pin
 router.delete('/:id', authenticate, deleteVoicePin);
