@@ -1501,7 +1501,7 @@ export const getRandomVoicePin: RequestHandler = async (req, res): Promise<void>
 
         console.log('Searching for voices at:', { lat, lng, radiusKm, userId });
 
-        const voicePins = await prisma.voicePin.findMany({
+        let voicePins = await prisma.voicePin.findMany({
             where: {
                 visibility: 'PUBLIC',
                 deletedAt: null,
@@ -1521,8 +1521,25 @@ export const getRandomVoicePin: RequestHandler = async (req, res): Promise<void>
             }
         });
 
+        // Fallback: If no nearby voices found, find ANY public voice from other users
         if (voicePins.length === 0) {
-            res.status(404).json({ message: 'No nearby voices found. Try expanding your search!' });
+            console.log('No nearby voices, falling back to any public voices');
+            voicePins = await prisma.voicePin.findMany({
+                where: {
+                    visibility: 'PUBLIC',
+                    deletedAt: null,
+                    userId: userId ? { not: parseInt(userId.toString()) } : undefined,
+                },
+                include: {
+                    user: { select: { id: true, username: true, avatar: true, displayName: true } },
+                    images: true
+                },
+                take: 50 // Limit fallback search
+            });
+        }
+
+        if (voicePins.length === 0) {
+            res.status(404).json({ message: 'Chưa có giọng nói công khai nào để khám phá. Hãy là người đầu tiên!' });
             return;
         }
 

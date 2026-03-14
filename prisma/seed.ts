@@ -119,12 +119,12 @@ async function main() {
     const users = await Promise.all([
         prisma.user.create({
             data: {
-                username: 'john_doe',
-                email: 'john@example.com',
+                username: 'my_ngan_2k',
+                email: 'myngan@gmail.com',
                 password: hashedPassword,
-                displayName: 'John Doe',
+                displayName: 'Mỹ Ngân',
                 avatar: 'https://i.pinimg.com/736x/d5/19/0c/d5190c1430fee145a3c76f479134da8f.jpg',
-                bio: 'Người khám phá giọng nói và yêu âm nhạc 🎵',
+                bio: 'Shopaholic & Genz chính hiệu 💅✨',
                 level: 3,
                 xp: 350,
                 scanRadius: 2000,
@@ -133,12 +133,12 @@ async function main() {
         }),
         prisma.user.create({
             data: {
-                username: 'jane_smith',
-                email: 'jane@example.com',
+                username: 'bundau_mamtom',
+                email: 'bundau@gmail.com',
                 password: hashedPassword,
-                displayName: 'Jane Smith',
+                displayName: 'Bún Đậu',
                 avatar: 'https://i.pinimg.com/736x/b7/86/7f/b7867fb2b579cbfceec90e671f566a36.jpg',
-                bio: 'Chia sẻ những câu chuyện qua từng giọng nói',
+                bio: 'Nghiện bún đậu mắm tôm, không có mắm tôm đời không nể 🍜',
                 level: 5,
                 xp: 1200,
                 scanRadius: 3000,
@@ -147,13 +147,13 @@ async function main() {
         }),
         prisma.user.create({
             data: {
-                username: 'alex_wonder',
-                email: 'alex@example.com',
+                username: 'dau_dai_hoc',
+                email: 'dau_dai_hoc@gmail.com',
                 password: hashedPassword,
                 googleId: 'google-oauth-id-alex-123',
-                displayName: 'Alex Wonder',
+                displayName: 'Đậu đại học thì đổi tên',
                 avatar: 'https://i.pinimg.com/736x/d4/e3/b0/d4e3b0f80d2ef6656fbdc671af9c0975.jpg',
-                bio: 'Người tìm kiếm sự phiêu lưu 🌍',
+                bio: 'Khi nào đậu đại học tôi mới đổi tên này, thề! ✍️🎓',
                 level: 2,
                 xp: 150,
                 scanRadius: 1500,
@@ -162,12 +162,12 @@ async function main() {
         }),
         prisma.user.create({
             data: {
-                username: 'sarah_connor',
-                email: 'sarah@example.com',
+                username: 'chay_pho_102',
+                email: 'chaypho@gmail.com',
                 password: hashedPassword,
-                displayName: 'Sarah Connor',
+                displayName: 'Cháy phố',
                 avatar: 'https://i.pinimg.com/736x/41/9b/2b/419b2bd96c0aca8761ec0d15c47b6235.jpg',
-                bio: 'Người đam mê công nghệ và nghệ sĩ lồng tiếng',
+                bio: 'Hệ hướng ngoại, chuyên săn deal và cháy phố mỗi tối 🏎️💨',
                 level: 4,
                 xp: 700,
                 scanRadius: 2500,
@@ -176,12 +176,12 @@ async function main() {
         }),
         prisma.user.create({
             data: {
-                username: 'mike_ross',
-                email: 'mike@example.com',
+                username: 'simp_lo_lord',
+                email: 'simplo@gmail.com',
                 password: hashedPassword,
-                displayName: 'Mike Ross',
+                displayName: 'Simp lỏ',
                 avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=mike',
-                bio: 'Chỉ ở đây để thì thầm...',
+                bio: 'Simp lỏ chúa, chỉ ở đây để tìm người thương... 💖🥺',
                 level: 1,
                 xp: 25,
                 scanRadius: 1000,
@@ -242,9 +242,8 @@ async function main() {
         // John's voice pins
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice1.mp3',
-                content: 'Hoàng hôn tuyệt đẹp trên bãi biển! 🌅',
-                audioDuration: 45,
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+                audioDuration: 30,
                 audioSize: 720000,
                 latitude: 10.7769,
                 longitude: 106.7009,
@@ -263,7 +262,7 @@ async function main() {
         }),
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice2.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Tin nhắn bí mật chỉ dành cho những người khám phá! 🔍',
                 audioDuration: 30,
                 audioSize: 480000,
@@ -286,9 +285,9 @@ async function main() {
         // John's additional voice pins
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice8.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Buổi chiều mưa ở Sài Gòn, nhớ quá... 🌧️',
-                audioDuration: 35,
+                audioDuration: 30,
                 audioSize: 560000,
                 latitude: 10.7731,
                 longitude: 106.6980,
@@ -307,9 +306,9 @@ async function main() {
         }),
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice9.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Buổi sáng bình yên với ly cà phê sữa đá ☕',
-                audioDuration: 50,
+                audioDuration: 30,
                 audioSize: 800000,
                 latitude: 10.7850,
                 longitude: 106.6950,
@@ -328,9 +327,9 @@ async function main() {
         }),
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice10.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Hồi tưởng về tuổi thơ với những gánh hàng rong đêm khuya 🌙',
-                audioDuration: 65,
+                audioDuration: 30,
                 audioSize: 1040000,
                 latitude: 10.7628,
                 longitude: 106.6602,
@@ -349,9 +348,9 @@ async function main() {
         }),
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice11.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Buổi hẹn hò dưới ánh đèn phố đi bộ 💕',
-                audioDuration: 42,
+                audioDuration: 30,
                 audioSize: 672000,
                 latitude: 10.7745,
                 longitude: 106.7030,
@@ -370,9 +369,9 @@ async function main() {
         }),
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice12.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Khám phá một con hẻm nhỏ ở Sài Gòn, tìm thấy một quán ăn tuyệt vời! 🍲',
-                audioDuration: 38,
+                audioDuration: 30,
                 audioSize: 608000,
                 latitude: 10.7810,
                 longitude: 106.6890,
@@ -391,9 +390,9 @@ async function main() {
         }),
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice13.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Buổi hòa nhạc tuyệt vời! Năng lượng khó tin suốt cả đêm 🎶🔥',
-                audioDuration: 28,
+                audioDuration: 30,
                 audioSize: 448000,
                 latitude: 10.7880,
                 longitude: 106.7050,
@@ -412,9 +411,9 @@ async function main() {
         }),
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice14.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Bình minh trên sông Sài Gòn, thực sự tuyệt đẹp 🌅',
-                audioDuration: 75,
+                audioDuration: 30,
                 audioSize: 1200000,
                 latitude: 10.7870,
                 longitude: 106.7150,
@@ -433,9 +432,9 @@ async function main() {
         }),
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice15.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Suy ngẫm về cuộc đời giữa những con hẻm cũ 🤔',
-                audioDuration: 88,
+                audioDuration: 30,
                 audioSize: 1408000,
                 latitude: 10.7720,
                 longitude: 106.6920,
@@ -455,9 +454,9 @@ async function main() {
         // Jane's voice pins
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice3.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Gợi ý quán cà phê yêu thích của tôi ☕',
-                audioDuration: 60,
+                audioDuration: 30,
                 audioSize: 960000,
                 latitude: 10.7867,
                 longitude: 106.7011,
@@ -476,9 +475,9 @@ async function main() {
         }),
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice4.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Suy nghĩ riêng tư chỉ dành cho bạn bè 💭',
-                audioDuration: 90,
+                audioDuration: 30,
                 audioSize: 1440000,
                 latitude: 10.7900,
                 longitude: 106.7100,
@@ -498,9 +497,9 @@ async function main() {
         // Alex's voice pins
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice5.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Phát hiện món ăn đường phố tuyệt vời! 🍜',
-                audioDuration: 40,
+                audioDuration: 30,
                 audioSize: 640000,
                 latitude: 10.7620,
                 longitude: 106.6830,
@@ -521,9 +520,9 @@ async function main() {
         // Sarah's voice pins
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice6.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Thông báo buổi gặp gỡ công nghệ! Tham gia cùng chúng tôi nhé! 💻',
-                audioDuration: 120,
+                audioDuration: 30,
                 audioSize: 1920000,
                 latitude: 10.8000,
                 longitude: 106.6500,
@@ -542,9 +541,9 @@ async function main() {
         }),
         prisma.voicePin.create({
             data: {
-                audioUrl: 'https://example.com/audio/voice7.mp3',
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
                 content: 'Địa điểm ẩn mình tuyệt vời cho các nhiếp ảnh gia 📸',
-                audioDuration: 55,
+                audioDuration: 30,
                 audioSize: 880000,
                 latitude: 10.7550,
                 longitude: 106.7200,
@@ -709,8 +708,8 @@ async function main() {
         prisma.comment.create({
             data: {
                 content: 'Đã đính kèm phản hồi bằng giọng nói',
-                audioUrl: 'https://example.com/audio/comment1.mp3',
-                audioDuration: 15,
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+                audioDuration: 30,
                 audioSize: 240000,
                 userId: users[2].id,
                 voicePinId: voicePins[2].id
