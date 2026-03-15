@@ -119,6 +119,7 @@
     emotionLabel    String?    // Ex: "Happy", "Sad", "Nostalgic"
     emotionScore    Float?     // Point to calculate average
     stickerUrl      String?    // Sticker AI automatically attached
+    transcription   String?    // AI-transcribed text
 
     // --- Device Metadata ---
     deviceModel     String?    // Ex: "iPhone 14 Pro"
@@ -128,6 +129,9 @@
     listensCount    Int       @default(0)
     reactionsCount  Int       @default(0)
     commentsCount   Int       @default(0)
+
+    // --- Moderation Status ---
+    status          VoicePinStatus @default(PENDING)
 
     // --- Soft Delete ---
     deletedAt       DateTime?
@@ -156,6 +160,12 @@
   enum VoiceType {
     STANDARD
     HIDDEN_AR
+  }
+
+  enum VoicePinStatus {
+    PENDING
+    APPROVED
+    REJECTED
   }
 
   model Image {

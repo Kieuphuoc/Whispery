@@ -1,10 +1,8 @@
-import { Request, Response, RequestHandler } from 'express';
 import prisma from '../prismaClient.js';
 import { uploadToAzure } from '../config/azureStorage.js';
 import { Visibility, VoiceType } from '@prisma/client';
 import { checkVoiceActivityAndSize } from '../utils/vadUtils.js';
 import { processAudioBlob } from '../services/audioModerationService.js';
-
 /**
  * @swagger
  * components:
@@ -172,7 +170,6 @@ import { processAudioBlob } from '../services/audioModerationService.js';
  *               items:
  *                 $ref: '#/components/schemas/VoicePinReaction'
  */
-
 /**
  * @swagger
  * /voice:
@@ -302,41 +299,20 @@ import { processAudioBlob } from '../services/audioModerationService.js';
  *             example:
  *               message: "Audio file is required"
  */
-export const createVoicePin: RequestHandler = async (req, res): Promise<void> => {
+export const createVoicePin = async (req, res) => {
     try {
         console.log("createVoicePin: Start (upload.fields)");
-        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        const files = req.files;
         const audioFile = files?.['file']?.[0];
         const imageFiles = files?.['images'] || [];
-
-        const userId = req.user!.id;
-        const {
-            description,
-            latitude,
-            longitude,
-            visibility,
-            images,
-            audioDuration,
-            audioSize,
-            address,
-            isAnonymous,
-            type,
-            unlockRadius,
-            emotionLabel,
-            emotionScore,
-            stickerUrl,
-            deviceModel,
-            osVersion
-        } = req.body;
-
+        const userId = req.user.id;
+        const { description, latitude, longitude, visibility, images, audioDuration, audioSize, address, isAnonymous, type, unlockRadius, emotionLabel, emotionScore, stickerUrl, deviceModel, osVersion } = req.body;
         console.log("createVoicePin: body check", { description, latitude, longitude, hasImagesBody: !!images });
-
         if (!audioFile) {
             console.log("createVoicePin: No audio file found in fields");
             res.status(400).json({ message: 'Audio file is required' });
             return;
         }
-
         console.log("createVoicePin: Checking VAD and size...");
         const vadCheck = await checkVoiceActivityAndSize(audioFile.buffer, 15);
         if (!vadCheck.isValid) {
@@ -344,42 +320,29 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
             res.status(400).json({ message: vadCheck.reason || 'Invalid audio file' });
             return;
         }
-
         console.log("createVoicePin: Uploading audio...");
-        const audioUrl = await uploadToAzure(
-            audioFile.buffer,
-            audioFile.originalname,
-            audioFile.mimetype,
-            'voicepin'
-        );
+        const audioUrl = await uploadToAzure(audioFile.buffer, audioFile.originalname, audioFile.mimetype, 'voicepin');
         console.log("createVoicePin: Audio uploaded", audioUrl);
-
-        const uploadedImageUrls: string[] = [];
+        const uploadedImageUrls = [];
         if (imageFiles.length > 0) {
             console.log(`createVoicePin: Uploading ${imageFiles.length} images...`);
             for (const file of imageFiles) {
-                const url = await uploadToAzure(
-                    file.buffer,
-                    file.originalname,
-                    file.mimetype,
-                    'voicepins/images'
-                );
+                const url = await uploadToAzure(file.buffer, file.originalname, file.mimetype, 'voicepins/images');
                 uploadedImageUrls.push(url);
             }
             console.log("createVoicePin: Images uploaded", uploadedImageUrls);
         }
-
         let existingImages = [];
         try {
             existingImages = JSON.parse(images || '[]');
-        } catch (e) {
+        }
+        catch (e) {
             console.warn("createVoicePin: Failed to parse images body as JSON, using as is if string", images);
             if (images && typeof images === 'string' && images !== 'undefined') {
                 existingImages = [images];
             }
         }
         const allImageUrls = [...existingImages, ...uploadedImageUrls];
-
         console.log("createVoicePin: Creating prisma record...");
         const voicePin = await prisma.voicePin.create({
             data: {
@@ -401,15 +364,13 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
                 deviceModel: deviceModel || null,
                 osVersion: osVersion || null,
                 images: {
-                    create: allImageUrls.map((url: string) => ({ imageUrl: url }))
+                    create: allImageUrls.map((url) => ({ imageUrl: url }))
                 }
             },
             include: { images: true }
         });
-
         console.log("createVoicePin: Success", voicePin.id);
         res.status(200).json({ data: voicePin });
-
         // Run background moderation task asynchronously
         try {
             const urlObj = new URL(audioUrl);
@@ -423,16 +384,17 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
                     console.error('Background moderation failed:', err);
                 });
             }
-        } catch (e) {
+        }
+        catch (e) {
             console.error('Failed to parse audioUrl to trigger moderation:', e);
         }
-    } catch (err) {
+    }
+    catch (err) {
         console.error("createVoicePin: Error", err);
-        const error = err as Error;
+        const error = err;
         res.status(400).json({ message: error.message });
     }
 };
-
 /**
  * @swagger
  * /voice/{id}:
@@ -547,111 +509,92 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
  *             example:
  *               message: "Voice pin not found"
  */
-export const updateVoicePin: RequestHandler = async (req, res): Promise<void> => {
+export const updateVoicePin = async (req, res) => {
     try {
-        const id = req.params.id as string;
+        const id = req.params.id;
         console.log(`updateVoicePin: Start (id: ${id}, upload.fields)`);
-        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        const files = req.files;
         const audioFile = files?.['file']?.[0];
         const imageFiles = files?.['images'] || [];
-
-        const userId = req.user!.id;
-        const {
-            description,
-            latitude,
-            longitude,
-            visibility,
-            images,
-            audioDuration,
-            audioSize,
-            address,
-            isAnonymous,
-            type,
-            unlockRadius,
-            emotionLabel,
-            emotionScore,
-            stickerUrl,
-            deviceModel,
-            osVersion
-        } = req.body;
-
-        let audioUrl: string | undefined;
+        const userId = req.user.id;
+        const { description, latitude, longitude, visibility, images, audioDuration, audioSize, address, isAnonymous, type, unlockRadius, emotionLabel, emotionScore, stickerUrl, deviceModel, osVersion } = req.body;
+        let audioUrl;
         if (audioFile) {
             console.log("updateVoicePin: Uploading new audio...");
-            audioUrl = await uploadToAzure(
-                audioFile.buffer,
-                audioFile.originalname,
-                audioFile.mimetype,
-                'voicepin'
-            );
+            audioUrl = await uploadToAzure(audioFile.buffer, audioFile.originalname, audioFile.mimetype, 'voicepin');
             console.log("updateVoicePin: New audio uploaded", audioUrl);
         }
-
-        const updateData: Record<string, unknown> = {};
-
-        if (audioUrl) updateData.audioUrl = audioUrl;
-        if (description !== undefined) updateData.content = description || null;
-        if (latitude !== undefined) updateData.latitude = parseFloat(latitude);
-        if (longitude !== undefined) updateData.longitude = parseFloat(longitude);
-        if (visibility !== undefined) updateData.visibility = visibility;
-        if (audioDuration !== undefined) updateData.audioDuration = parseInt(audioDuration);
-        if (audioSize !== undefined) updateData.audioSize = parseInt(audioSize);
-        if (address !== undefined) updateData.address = address || null;
-        if (isAnonymous !== undefined) updateData.isAnonymous = isAnonymous === 'true' || isAnonymous === true;
-        if (type !== undefined) updateData.type = type;
-        if (unlockRadius !== undefined) updateData.unlockRadius = parseInt(unlockRadius);
-        if (emotionLabel !== undefined) updateData.emotionLabel = emotionLabel || null;
-        if (emotionScore !== undefined) updateData.emotionScore = parseFloat(emotionScore);
-        if (stickerUrl !== undefined) updateData.stickerUrl = stickerUrl || null;
-        if (deviceModel !== undefined) updateData.deviceModel = deviceModel || null;
-        if (osVersion !== undefined) updateData.osVersion = osVersion || null;
-
+        const updateData = {};
+        if (audioUrl)
+            updateData.audioUrl = audioUrl;
+        if (description !== undefined)
+            updateData.content = description || null;
+        if (latitude !== undefined)
+            updateData.latitude = parseFloat(latitude);
+        if (longitude !== undefined)
+            updateData.longitude = parseFloat(longitude);
+        if (visibility !== undefined)
+            updateData.visibility = visibility;
+        if (audioDuration !== undefined)
+            updateData.audioDuration = parseInt(audioDuration);
+        if (audioSize !== undefined)
+            updateData.audioSize = parseInt(audioSize);
+        if (address !== undefined)
+            updateData.address = address || null;
+        if (isAnonymous !== undefined)
+            updateData.isAnonymous = isAnonymous === 'true' || isAnonymous === true;
+        if (type !== undefined)
+            updateData.type = type;
+        if (unlockRadius !== undefined)
+            updateData.unlockRadius = parseInt(unlockRadius);
+        if (emotionLabel !== undefined)
+            updateData.emotionLabel = emotionLabel || null;
+        if (emotionScore !== undefined)
+            updateData.emotionScore = parseFloat(emotionScore);
+        if (stickerUrl !== undefined)
+            updateData.stickerUrl = stickerUrl || null;
+        if (deviceModel !== undefined)
+            updateData.deviceModel = deviceModel || null;
+        if (osVersion !== undefined)
+            updateData.osVersion = osVersion || null;
         if (images || imageFiles.length > 0) {
             console.log("updateVoicePin: Processing images...");
-            const uploadedImageUrls: string[] = [];
+            const uploadedImageUrls = [];
             for (const file of imageFiles) {
-                const url = await uploadToAzure(
-                    file.buffer,
-                    file.originalname,
-                    file.mimetype,
-                    'voicepins/images'
-                );
+                const url = await uploadToAzure(file.buffer, file.originalname, file.mimetype, 'voicepins/images');
                 uploadedImageUrls.push(url);
             }
-
             let existingImages = [];
             try {
                 existingImages = JSON.parse(images || '[]');
-            } catch (e) {
+            }
+            catch (e) {
                 console.warn("updateVoicePin: Failed to parse images body as JSON", images);
                 if (images && typeof images === 'string' && images !== 'undefined') {
                     existingImages = [images];
                 }
             }
             const allImageUrls = [...existingImages, ...uploadedImageUrls];
-
             updateData.images = {
                 deleteMany: {},
-                create: allImageUrls.map((url: string) => ({ imageUrl: url }))
+                create: allImageUrls.map((url) => ({ imageUrl: url }))
             };
         }
-
         console.log("updateVoicePin: Updating prisma record...");
         const voicePin = await prisma.voicePin.update({
             where: { id: parseInt(id), userId, deletedAt: null },
             data: updateData,
             include: { images: true }
         });
-
         console.log("updateVoicePin: Success", voicePin.id);
         res.status(200).json({ data: voicePin });
-    } catch (err) {
+    }
+    catch (err) {
         console.error("updateVoicePin: Error", err);
-        const error = err as Error;
+        const error = err;
         res.status(400).json({ message: error.message });
     }
 };
-
 /**
  * @swagger
  * /voice/public:
@@ -707,7 +650,7 @@ export const updateVoicePin: RequestHandler = async (req, res): Promise<void> =>
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-export const getPublicVoicePin: RequestHandler = async (_req, res): Promise<void> => {
+export const getPublicVoicePin = async (_req, res) => {
     try {
         const voicePins = await prisma.voicePin.findMany({
             where: { visibility: 'PUBLIC', deletedAt: null },
@@ -718,12 +661,12 @@ export const getPublicVoicePin: RequestHandler = async (_req, res): Promise<void
             orderBy: { createdAt: 'desc' }
         });
         res.status(200).json({ data: voicePins });
-    } catch (err) {
-        const error = err as Error;
+    }
+    catch (err) {
+        const error = err;
         res.status(400).json({ message: error.message });
     }
 };
-
 /**
  * @swagger
  * /voice/user/{id}/public:
@@ -775,9 +718,9 @@ export const getPublicVoicePin: RequestHandler = async (_req, res): Promise<void
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-export const getPublicVoicePinByUser: RequestHandler = async (req, res): Promise<void> => {
+export const getPublicVoicePinByUser = async (req, res) => {
     try {
-        const id = req.params.id as string;
+        const id = req.params.id;
         const voicePins = await prisma.voicePin.findMany({
             where: { visibility: 'PUBLIC', userId: parseInt(id), deletedAt: null },
             include: {
@@ -787,12 +730,12 @@ export const getPublicVoicePinByUser: RequestHandler = async (req, res): Promise
             orderBy: { createdAt: 'desc' }
         });
         res.status(200).json({ data: voicePins });
-    } catch (err) {
-        const error = err as Error;
+    }
+    catch (err) {
+        const error = err;
         res.status(400).json({ message: error.message });
     }
 };
-
 /**
  * @swagger
  * /voice/me/public:
@@ -838,10 +781,10 @@ export const getPublicVoicePinByUser: RequestHandler = async (req, res): Promise
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-export const getMyPublicVoicePins: RequestHandler = async (req, res): Promise<void> => {
+export const getMyPublicVoicePins = async (req, res) => {
     try {
         const voicePins = await prisma.voicePin.findMany({
-            where: { visibility: 'PUBLIC', userId: req.user!.id, deletedAt: null },
+            where: { visibility: 'PUBLIC', userId: req.user.id, deletedAt: null },
             include: {
                 user: { select: { id: true, username: true, displayName: true, avatar: true } },
                 images: true
@@ -849,12 +792,12 @@ export const getMyPublicVoicePins: RequestHandler = async (req, res): Promise<vo
             orderBy: { createdAt: 'desc' }
         });
         res.status(200).json({ data: voicePins });
-    } catch (err) {
-        const error = err as Error;
+    }
+    catch (err) {
+        const error = err;
         res.status(400).json({ message: error.message });
     }
 };
-
 /**
  * @swagger
  * /voice/friends:
@@ -900,10 +843,9 @@ export const getMyPublicVoicePins: RequestHandler = async (req, res): Promise<vo
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-export const getFriendsVisibleVoicePins: RequestHandler = async (req, res): Promise<void> => {
+export const getFriendsVisibleVoicePins = async (req, res) => {
     try {
-        const userId = req.user!.id;
-
+        const userId = req.user.id;
         const friendships = await prisma.friendship.findMany({
             where: {
                 status: 'ACCEPTED',
@@ -911,13 +853,11 @@ export const getFriendsVisibleVoicePins: RequestHandler = async (req, res): Prom
             },
             select: { senderId: true, receiverId: true }
         });
-
         const friendIds = friendships.map(f => (f.senderId === userId ? f.receiverId : f.senderId));
         if (friendIds.length === 0) {
             res.status(200).json({ data: [] });
             return;
         }
-
         const voicePins = await prisma.voicePin.findMany({
             where: { visibility: { in: ['PUBLIC', 'FRIENDS'] }, userId: { in: friendIds }, deletedAt: null },
             include: {
@@ -926,14 +866,13 @@ export const getFriendsVisibleVoicePins: RequestHandler = async (req, res): Prom
             },
             orderBy: { createdAt: 'desc' }
         });
-
         res.status(200).json({ data: voicePins });
-    } catch (err) {
-        const error = err as Error;
+    }
+    catch (err) {
+        const error = err;
         res.status(400).json({ message: error.message });
     }
 };
-
 /**
  * @swagger
  * /voice/{id}:
@@ -1004,10 +943,9 @@ export const getFriendsVisibleVoicePins: RequestHandler = async (req, res): Prom
  *             example:
  *               message: "Voice Pin not found"
  */
-export const getRetrieveVoicePin: RequestHandler = async (req, res): Promise<void> => {
+export const getRetrieveVoicePin = async (req, res) => {
     try {
-        const id = req.params.id as string;
-
+        const id = req.params.id;
         const voicePin = await prisma.voicePin.update({
             where: { id: parseInt(id), deletedAt: null },
             data: { listensCount: { increment: 1 } },
@@ -1017,19 +955,17 @@ export const getRetrieveVoicePin: RequestHandler = async (req, res): Promise<voi
                 reactions: { select: { id: true, type: true, userId: true } }
             }
         });
-
         if (!voicePin) {
             res.status(404).json({ message: 'Voice Pin not found' });
             return;
         }
-
         res.status(200).json({ data: voicePin });
-    } catch (err) {
-        const error = err as Error;
+    }
+    catch (err) {
+        const error = err;
         res.status(400).json({ message: error.message });
     }
 };
-
 /**
  * @swagger
  * /voice:
@@ -1076,10 +1012,9 @@ export const getRetrieveVoicePin: RequestHandler = async (req, res): Promise<voi
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-export const getVoicePin: RequestHandler = async (req, res): Promise<void> => {
+export const getVoicePin = async (req, res) => {
     try {
-        const userId = req.user!.id;
-
+        const userId = req.user.id;
         const voicePins = await prisma.voicePin.findMany({
             where: { userId, deletedAt: null },
             include: {
@@ -1088,14 +1023,13 @@ export const getVoicePin: RequestHandler = async (req, res): Promise<void> => {
             },
             orderBy: { createdAt: 'desc' }
         });
-
         res.status(200).json({ data: voicePins });
-    } catch (err) {
-        const error = err as Error;
+    }
+    catch (err) {
+        const error = err;
         res.status(400).json({ message: error.message });
     }
 };
-
 /**
  * @swagger
  * /voice/{id}:
@@ -1123,24 +1057,22 @@ export const getVoicePin: RequestHandler = async (req, res): Promise<void> => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-export const deleteVoicePin: RequestHandler = async (req, res): Promise<void> => {
+export const deleteVoicePin = async (req, res) => {
     try {
-        const userId = req.user!.id;
-        const id = req.params.id as string;
-
+        const userId = req.user.id;
+        const id = req.params.id;
         // Soft delete by setting deletedAt timestamp
         await prisma.voicePin.update({
             where: { id: parseInt(id), userId, deletedAt: null },
             data: { deletedAt: new Date() }
         });
-
         res.status(204).send();
-    } catch (err) {
-        const error = err as Error;
+    }
+    catch (err) {
+        const error = err;
         res.status(400).json({ message: error.message });
     }
 };
-
 /**
  * @swagger
  * /voice/{id}/comment:
@@ -1202,10 +1134,9 @@ export const deleteVoicePin: RequestHandler = async (req, res): Promise<void> =>
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-export const getComment: RequestHandler = async (req, res): Promise<void> => {
+export const getComment = async (req, res) => {
     try {
-        const id = req.params.id as string;
-
+        const id = req.params.id;
         const comments = await prisma.comment.findMany({
             where: { voicePinId: parseInt(id), deletedAt: null },
             include: {
@@ -1220,14 +1151,13 @@ export const getComment: RequestHandler = async (req, res): Promise<void> => {
             },
             orderBy: { createdAt: 'desc' }
         });
-
         res.status(200).json({ data: comments });
-    } catch (err) {
-        const error = err as Error;
+    }
+    catch (err) {
+        const error = err;
         res.status(400).json({ message: error.message });
     }
 };
-
 /**
  * @swagger
  * /voice/{id}/discover:
@@ -1279,47 +1209,39 @@ export const getComment: RequestHandler = async (req, res): Promise<void> => {
  *       401:
  *         description: Unauthorized
  */
-export const discoverVoice: RequestHandler = async (req, res): Promise<void> => {
+export const discoverVoice = async (req, res) => {
     try {
-        const userId = (req.user as { id: number }).id;
+        const userId = req.user.id;
         const voicePinId = Number(req.params.id);
-
         // Check if voice pin exists and is HIDDEN_AR type
         const voicePin = await prisma.voicePin.findUnique({
             where: { id: voicePinId, deletedAt: null }
         });
-
         if (!voicePin) {
             res.status(404).json({ message: 'Voice pin not found' });
             return;
         }
-
         if (voicePin.type !== VoiceType.HIDDEN_AR) {
             res.status(400).json({ message: 'This voice pin is not a hidden voice' });
             return;
         }
-
         // Cannot discover own voice pin
         if (voicePin.userId === userId) {
             res.status(400).json({ message: 'Cannot discover your own voice pin' });
             return;
         }
-
         // Check if already discovered
         const existing = await prisma.discoveredVoice.findUnique({
             where: {
                 userId_voicePinId: { userId, voicePinId }
             }
         });
-
         if (existing) {
             res.status(400).json({ message: 'You have already discovered this voice pin' });
             return;
         }
-
         // Create discovery record and award XP
         const xpReward = 50; // Base XP for discovering hidden voice
-
         const [discoveredVoice] = await prisma.$transaction([
             prisma.discoveredVoice.create({
                 data: { userId, voicePinId }
@@ -1335,18 +1257,17 @@ export const discoverVoice: RequestHandler = async (req, res): Promise<void> => 
                 data: { xp: { increment: Math.floor(xpReward / 2) } }
             })
         ]);
-
         res.status(200).json({
             message: 'Voice pin discovered!',
             discoveredVoice,
             xpAwarded: xpReward
         });
-    } catch (err) {
-        const error = err as Error;
+    }
+    catch (err) {
+        const error = err;
         res.status(400).json({ message: error.message });
     }
 };
-
 /**
  * @swagger
  * /voice/{id}/discoverers:
@@ -1414,23 +1335,20 @@ export const discoverVoice: RequestHandler = async (req, res): Promise<void> => 
  *       400:
  *         description: Bad request
  */
-export const getDiscoverers: RequestHandler = async (req, res): Promise<void> => {
+export const getDiscoverers = async (req, res) => {
     try {
         const voicePinId = Number(req.params.id);
         const page = Math.max(1, Number(req.query.page) || 1);
         const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
         const skip = (page - 1) * limit;
-
         // Verify voice pin exists
         const voicePin = await prisma.voicePin.findUnique({
             where: { id: voicePinId, deletedAt: null }
         });
-
         if (!voicePin) {
             res.status(404).json({ message: 'Voice pin not found' });
             return;
         }
-
         const [discoverers, total] = await Promise.all([
             prisma.discoveredVoice.findMany({
                 where: { voicePinId },
@@ -1450,19 +1368,18 @@ export const getDiscoverers: RequestHandler = async (req, res): Promise<void> =>
             }),
             prisma.discoveredVoice.count({ where: { voicePinId } })
         ]);
-
         res.status(200).json({
             discoverers,
             total,
             page,
             totalPages: Math.ceil(total / limit)
         });
-    } catch (err) {
-        const error = err as Error;
+    }
+    catch (err) {
+        const error = err;
         res.status(400).json({ message: error.message });
     }
 };
-
 /**
  * @swagger
  * /voice/random:
@@ -1504,30 +1421,25 @@ export const getDiscoverers: RequestHandler = async (req, res): Promise<void> =>
  *       400:
  *         description: Bad request
  */
-export const getRandomVoicePin: RequestHandler = async (req, res): Promise<void> => {
+export const getRandomVoicePin = async (req, res) => {
     try {
-        const queryLat = req.query.lat as string;
-        const queryLng = req.query.lng as string;
-        const queryRadius = req.query.radius as string;
-
+        const queryLat = req.query.lat;
+        const queryLng = req.query.lng;
+        const queryRadius = req.query.radius;
         const lat = parseFloat(queryLat);
         const lng = parseFloat(queryLng);
         const radiusKm = parseFloat(queryRadius) || 5;
-        const userId = req.user ? (req.user as any).id : null;
-
+        const userId = req.user ? req.user.id : null;
         if (isNaN(lat) || isNaN(lng)) {
             console.error('Invalid coordinates received:', { queryLat, queryLng });
             res.status(400).json({ message: 'Tọa độ không hợp lệ. Vui lòng bật định vị.' });
             return;
         }
-
         // 1 degree latitude is approx 111km
         const latDelta = radiusKm / 111;
         // 1 degree longitude is approx 111km * cos(latitude)
         const lngDelta = radiusKm / (111 * Math.cos(lat * Math.PI / 180));
-
         console.log('Searching for voices at:', { lat, lng, radiusKm, userId });
-
         let voicePins = await prisma.voicePin.findMany({
             where: {
                 visibility: 'PUBLIC',
@@ -1547,7 +1459,6 @@ export const getRandomVoicePin: RequestHandler = async (req, res): Promise<void>
                 images: true
             }
         });
-
         // Fallback: If no nearby voices found, find ANY public voice from other users
         if (voicePins.length === 0) {
             console.log('No nearby voices, falling back to any public voices');
@@ -1564,18 +1475,16 @@ export const getRandomVoicePin: RequestHandler = async (req, res): Promise<void>
                 take: 50 // Limit fallback search
             });
         }
-
         if (voicePins.length === 0) {
             res.status(404).json({ message: 'Chưa có giọng nói công khai nào để khám phá. Hãy là người đầu tiên!' });
             return;
         }
-
         // Randomly pick one
         const randomIndex = Math.floor(Math.random() * voicePins.length);
         const randomPin = voicePins[randomIndex];
-
         res.status(200).json({ data: randomPin });
-    } catch (err: any) {
+    }
+    catch (err) {
         console.error('Discovery Error:', err);
         res.status(400).json({
             message: err.message || 'Error discovering voices',
@@ -1583,3 +1492,4 @@ export const getRandomVoicePin: RequestHandler = async (req, res): Promise<void>
         });
     }
 };
+//# sourceMappingURL=voiceController.js.map
