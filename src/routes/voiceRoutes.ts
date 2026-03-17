@@ -14,13 +14,17 @@ import {
     getFriendsVisibleVoicePins,
     getRandomVoicePin,
     discoverVoice,
-    getDiscoverers
+    getDiscoverers,
+    getVoicePinsByBBox
 } from '../controllers/voiceController.js';
 
 const router = express.Router();
 
 // GET Random VoicePin (Discovery mode)
 router.get('/random', authenticate, getRandomVoicePin);
+
+// GET VoicePins by Bounding Box (must be before /:id)
+router.get('/bbox', getVoicePinsByBBox);
 
 // Get all voice pins for logged-in user
 router.get('/', authenticate, getVoicePin);

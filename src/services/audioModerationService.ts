@@ -93,16 +93,61 @@ export async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
             const audioConfig = sdk.AudioConfig.fromStreamInput(pushStream);
             const speechRecognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
 
-            speechRecognizer.recognizeOnceAsync(
-                (result) => {
-                    let transcription = '';
-                    if (result.reason === sdk.ResultReason.RecognizedSpeech) {
-                        transcription = result.text;
-                    } else {
-                        console.log(`Speech recognition finished. Reason: ${sdk.ResultReason[result.reason]}`);
+            // Dùng continuous recognition để nhận dạng toàn bộ audio, không chỉ câu đầu tiên
+            const allSegments: string[] = [];
+
+            speechRecognizer.recognized = (_sender, event) => {
+                if (event.result.reason === sdk.ResultReason.RecognizedSpeech) {
+                    const segment = event.result.text.trim();
+                    if (segment) {
+                        console.log(`transcribeAudio: recognized segment → "${segment}"`);
+                        allSegments.push(segment);
                     }
-                    speechRecognizer.close();
-                    resolve(transcription);
+                } else {
+                    console.log(`transcribeAudio: unrecognized event reason: ${sdk.ResultReason[event.result.reason]}`);
+                }
+            };
+
+            speechRecognizer.sessionStopped = () => {
+                console.log("transcribeAudio: session stopped. Stopping continuous recognition...");
+                speechRecognizer.stopContinuousRecognitionAsync(
+                    () => {
+                        speechRecognizer.close();
+                        const fullText = allSegments.join(' ');
+                        console.log(`transcribeAudio: full transcription → "${fullText}"`);
+                        resolve(fullText);
+                    },
+                    (err) => {
+                        speechRecognizer.close();
+                        reject(err);
+                    }
+                );
+            };
+
+            speechRecognizer.canceled = (_sender, event) => {
+                console.log(`transcribeAudio: canceled. Reason: ${sdk.CancellationReason[event.reason]}`);
+                speechRecognizer.stopContinuousRecognitionAsync(
+                    () => {
+                        speechRecognizer.close();
+                        if (event.reason === sdk.CancellationReason.Error) {
+                            console.error(`transcribeAudio: cancellation error: ${event.errorDetails}`);
+                            // Trả về những gì đã nhận được thay vì reject
+                            resolve(allSegments.join(' '));
+                        } else {
+                            resolve(allSegments.join(' '));
+                        }
+                    },
+                    (err) => {
+                        speechRecognizer.close();
+                        reject(err);
+                    }
+                );
+            };
+
+            console.log("transcribeAudio: starting continuous recognition...");
+            speechRecognizer.startContinuousRecognitionAsync(
+                () => {
+                    console.log("transcribeAudio: continuous recognition started.");
                 },
                 (err) => {
                     speechRecognizer.close();

@@ -36,6 +36,7 @@
     
     // --- Account Status ---
     status          UserStatus @default(ACTIVE)
+    postingBanned   Boolean    @default(false) // Banned from posting after 3 violations
     
     // --- Soft Delete ---
     deletedAt       DateTime?
@@ -50,9 +51,11 @@
     discoveredVoices DiscoveredVoice[] // Hidden voice was found
     achievements     UserAchievement[]
     reportsSent      Report[]          @relation("Reporter")
+    reportsResolved  Report[]          @relation("ResolvedBy")
     viewHistory      VoiceViewHistory[]
     notifications    Notification[]
     sessions         Session[]
+    auditLogs        AuditLog[]
     
     // Social
     friendshipsSent     Friendship[] @relation("friendshipsSent")
@@ -103,8 +106,7 @@
     audioSize       Int?      // Size in bytes
     
     // --- Location & Context ---
-    latitude        Float
-    longitude       Float
+    location        Unsupported("geometry(Point, 4326)")
     address         String?
     
     // --- Privacy & Mode ---
@@ -120,25 +122,25 @@
     emotionScore    Float?     // Point to calculate average
     stickerUrl      String?    // Sticker AI automatically attached
     transcription   String?    // AI-transcribed text
-
+ 
     // --- Device Metadata ---
     deviceModel     String?    // Ex: "iPhone 14 Pro"
     osVersion       String?    // Ex: "iOS 16.2"
-
+ 
     // --- Stats (Denormalized for Performance) ---
     listensCount    Int       @default(0)
     reactionsCount  Int       @default(0)
     commentsCount   Int       @default(0)
-
+ 
     // --- Moderation Status ---
     status          VoicePinStatus @default(PENDING)
-
+ 
     // --- Soft Delete ---
     deletedAt       DateTime?
-
+ 
     createdAt       DateTime  @default(now())
     updatedAt       DateTime  @updatedAt
-
+ 
     userId          Int
     user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
     
@@ -148,9 +150,9 @@
     reports         Report[]          @relation("ReportedVoice")
     images          Image[]    
     viewHistory     VoiceViewHistory[]     
-
+ 
     @@index([userId])
-    @@index([latitude, longitude]) // Index for scanning within radius
+    @@index([location], type: Gist) 
     @@index([emotionLabel])        // Index for filtering by emotion
     @@index([visibility])
     @@index([deletedAt])
@@ -352,6 +354,8 @@
     VOICE_DISCOVERED
     LEVEL_UP
     SYSTEM_MESSAGE
+    VOICE_REPORTED
+    POSTING_BANNED
   }
 
   // ==========================================
@@ -359,17 +363,25 @@
   // ==========================================
 
   model Report {
-    id          Int          @id @default(autoincrement())
-    reason      ReportReason
-    description String?      // Additional details from reporter
-    status      ReportStatus @default(PENDING)
+    id             Int          @id @default(autoincrement())
+    reason         ReportReason
+    description    String?      // Additional details from reporter
+    status         ReportStatus @default(PENDING)
     
+    // --- Violation Analysis ---
+    violationTags  String[]     // e.g. ["SPAM", "HATE_SPEECH"]
+    violationScore Float?       // AI or admin-assigned score (0-10)
+
     // --- Moderation Response ---
-    moderatorNote String?    // Internal note from moderator
-    resolvedAt    DateTime?  // When the report was resolved
+    moderatorNote  String?      // Internal note from moderator
+    resolvedAt     DateTime?    // When the report was resolved
+
+    // --- Who resolved ---
+    resolvedById   Int?
+    resolvedBy     User?        @relation("ResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
     
-    createdAt   DateTime     @default(now())
-    updatedAt   DateTime     @updatedAt
+    createdAt      DateTime     @default(now())
+    updatedAt      DateTime     @updatedAt
 
     reporterId  Int
     reporter    User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
@@ -381,6 +393,7 @@
     @@index([reporterId])
     @@index([voicePinId])
     @@index([createdAt])
+    @@index([resolvedById])
   }
 
   enum ReportReason {
@@ -399,6 +412,26 @@
     UNDER_REVIEW
     RESOLVED
     DISMISSED
+  }
+
+  // ==========================================
+  // 10. AUDIT LOG
+  // ==========================================
+
+  model AuditLog {
+    id         Int      @id @default(autoincrement())
+    action     String   // e.g. "REPORT_RESOLVED", "USER_BANNED", "REPORT_DISMISSED"
+    targetType String   // e.g. "Report", "User", "VoicePin"
+    targetId   Int      // ID of the affected entity
+    details    Json?    // Extra context (oldStatus, newStatus, reason, etc.)
+    createdAt  DateTime @default(now())
+
+    adminId    Int
+    admin      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+    @@index([adminId])
+    @@index([targetType, targetId])
+    @@index([createdAt])
   }
 
   // ==========================================

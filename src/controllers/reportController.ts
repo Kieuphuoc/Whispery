@@ -1,66 +1,36 @@
 import { Request, Response, RequestHandler } from 'express';
 import prisma from '../prismaClient.js';
-import { ReportReason } from '@prisma/client';
+import { ReportReason, ReportStatus, NotificationType } from '@prisma/client';
+import { createNotification } from './notificationController.js';
 
-/**
- * @swagger
- * components:
- *   schemas:
- *     Report:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *           example: 1
- *         reason:
- *           type: string
- *           enum: [SPAM, HARASSMENT, HATE_SPEECH, VIOLENCE, NUDITY, MISINFORMATION, COPYRIGHT, OTHER]
- *           example: "SPAM"
- *         description:
- *           type: string
- *           nullable: true
- *           description: Additional details from reporter
- *           example: "This voice pin contains spam content"
- *         status:
- *           type: string
- *           enum: [PENDING, UNDER_REVIEW, RESOLVED, DISMISSED]
- *           example: "PENDING"
- *         createdAt:
- *           type: string
- *           format: date-time
- *           example: "2024-01-15T10:30:00.000Z"
- *         updatedAt:
- *           type: string
- *           format: date-time
- *           example: "2024-01-15T10:30:00.000Z"
- *         reporterId:
- *           type: integer
- *           example: 1
- *         voicePinId:
- *           type: integer
- *           example: 5
- *         voicePin:
- *           type: object
- *           properties:
- *             id:
- *               type: integer
- *             content:
- *               type: string
- *             user:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                 username:
- *                   type: string
- */
+// ─── Helper: count resolved violations for a user ───────────────────────────
+async function countViolations(userId: number): Promise<number> {
+    return prisma.report.count({
+        where: {
+            voicePin: { userId },
+            status: 'RESOLVED'
+        }
+    });
+}
+
+// ─── Helper: create audit log ───────────────────────────────────────────────
+async function createAuditLog(
+    adminId: number,
+    action: string,
+    targetType: string,
+    targetId: number,
+    details?: object
+) {
+    await prisma.auditLog.create({
+        data: { adminId, action, targetType, targetId, details: details ?? {} }
+    });
+}
 
 /**
  * @swagger
  * /report:
  *   post:
  *     summary: Submit a report for a voice pin
- *     description: Creates a new report for a voice pin. Users cannot report their own voice pins or report the same voice pin twice.
  *     tags: [Report]
  *     security:
  *       - bearerAuth: []
@@ -70,36 +40,22 @@ import { ReportReason } from '@prisma/client';
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - voicePinId
- *               - reason
+ *             required: [voicePinId, reason]
  *             properties:
  *               voicePinId:
  *                 type: integer
- *                 description: ID of the voice pin to report
- *                 example: 5
  *               reason:
  *                 type: string
  *                 enum: [SPAM, HARASSMENT, HATE_SPEECH, VIOLENCE, NUDITY, MISINFORMATION, COPYRIGHT, OTHER]
- *                 description: Reason for the report
- *                 example: "SPAM"
  *               description:
  *                 type: string
- *                 description: Additional details (optional)
- *                 example: "This voice pin contains promotional spam"
  *     responses:
  *       201:
  *         description: Report submitted successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Report'
  *       400:
- *         description: Bad request (already reported, own voice pin, etc.)
+ *         description: Bad request
  *       404:
  *         description: Voice pin not found
- *       401:
- *         description: Unauthorized
  */
 export const submitReport: RequestHandler = async (req, res): Promise<void> => {
     try {
@@ -111,15 +67,14 @@ export const submitReport: RequestHandler = async (req, res): Promise<void> => {
             return;
         }
 
-        // Validate reason
         if (!Object.values(ReportReason).includes(reason)) {
             res.status(400).json({ message: 'Invalid report reason' });
             return;
         }
 
-        // Check if voice pin exists
         const voicePin = await prisma.voicePin.findUnique({
-            where: { id: Number(voicePinId), deletedAt: null }
+            where: { id: Number(voicePinId), deletedAt: null },
+            include: { user: { select: { id: true, username: true } } }
         });
 
         if (!voicePin) {
@@ -127,18 +82,13 @@ export const submitReport: RequestHandler = async (req, res): Promise<void> => {
             return;
         }
 
-        // Cannot report own voice pin
         if (voicePin.userId === reporterId) {
             res.status(400).json({ message: 'Cannot report your own voice pin' });
             return;
         }
 
-        // Check for existing report
         const existingReport = await prisma.report.findFirst({
-            where: {
-                reporterId,
-                voicePinId: Number(voicePinId)
-            }
+            where: { reporterId, voicePinId: Number(voicePinId) }
         });
 
         if (existingReport) {
@@ -151,23 +101,27 @@ export const submitReport: RequestHandler = async (req, res): Promise<void> => {
                 reporterId,
                 voicePinId: Number(voicePinId),
                 reason,
-                description: description ?? null
+                description: description ?? null,
+                violationTags: [reason],
             },
             include: {
                 voicePin: {
-                    select: {
-                        id: true,
-                        content: true,
-                        user: {
-                            select: {
-                                id: true,
-                                username: true
-                            }
-                        }
-                    }
+                    select: { id: true, content: true, user: { select: { id: true, username: true } } }
                 }
             }
         });
+
+        // Notify the author of the voicePin
+        await createNotification(
+            voicePin.userId,
+            NotificationType.VOICE_REPORTED,
+            {
+                reportId: report.id,
+                voicePinId: voicePin.id,
+                reason,
+                message: `Bài đăng của bạn đã bị báo cáo vi phạm nội dung: ${reason}`
+            }
+        );
 
         res.status(201).json(report);
     } catch (err) {
@@ -181,43 +135,9 @@ export const submitReport: RequestHandler = async (req, res): Promise<void> => {
  * /report/my:
  *   get:
  *     summary: Get reports submitted by current user
- *     description: Returns all reports submitted by the authenticated user, sorted by newest first.
  *     tags: [Report]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *         description: Page number
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 20
- *         description: Number of reports per page
- *     responses:
- *       200:
- *         description: List of reports
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 reports:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Report'
- *                 total:
- *                   type: integer
- *                 page:
- *                   type: integer
- *                 totalPages:
- *                   type: integer
- *       401:
- *         description: Unauthorized
  */
 export const getMyReports: RequestHandler = async (req, res): Promise<void> => {
     try {
@@ -231,16 +151,7 @@ export const getMyReports: RequestHandler = async (req, res): Promise<void> => {
                 where: { reporterId },
                 include: {
                     voicePin: {
-                        select: {
-                            id: true,
-                            content: true,
-                            user: {
-                                select: {
-                                    id: true,
-                                    username: true
-                                }
-                            }
-                        }
+                        select: { id: true, content: true, user: { select: { id: true, username: true } } }
                     }
                 },
                 orderBy: { createdAt: 'desc' },
@@ -250,12 +161,7 @@ export const getMyReports: RequestHandler = async (req, res): Promise<void> => {
             prisma.report.count({ where: { reporterId } })
         ]);
 
-        res.status(200).json({
-            reports,
-            total,
-            page,
-            totalPages: Math.ceil(total / limit)
-        });
+        res.status(200).json({ reports, total, page, totalPages: Math.ceil(total / limit) });
     } catch (err) {
         const error = err as Error;
         res.status(400).json({ message: error.message });
@@ -267,28 +173,9 @@ export const getMyReports: RequestHandler = async (req, res): Promise<void> => {
  * /report/{id}:
  *   get:
  *     summary: Get a specific report by ID
- *     description: Returns a specific report. Only the reporter can view their own report.
  *     tags: [Report]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: Report ID
- *     responses:
- *       200:
- *         description: Report details
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Report'
- *       404:
- *         description: Report not found
- *       401:
- *         description: Unauthorized
  */
 export const getReport: RequestHandler = async (req, res): Promise<void> => {
     try {
@@ -300,16 +187,8 @@ export const getReport: RequestHandler = async (req, res): Promise<void> => {
             include: {
                 voicePin: {
                     select: {
-                        id: true,
-                        content: true,
-                        audioUrl: true,
-                        user: {
-                            select: {
-                                id: true,
-                                username: true,
-                                displayName: true
-                            }
-                        }
+                        id: true, content: true, audioUrl: true, transcription: true,
+                        user: { select: { id: true, username: true, displayName: true } }
                     }
                 }
             }
@@ -324,5 +203,268 @@ export const getReport: RequestHandler = async (req, res): Promise<void> => {
     } catch (err) {
         const error = err as Error;
         res.status(400).json({ message: error.message });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * @swagger
+ * /report/admin/all:
+ *   get:
+ *     summary: "[Admin] Get all reports with filters"
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ */
+export const adminGetAllReports: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const page = Math.max(1, Number(req.query.page) || 1);
+        const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+        const skip = (page - 1) * limit;
+        const status = req.query.status as ReportStatus | undefined;
+        const reason = req.query.reason as ReportReason | undefined;
+
+        const where: any = {};
+        if (status && Object.values(ReportStatus).includes(status)) where.status = status;
+        if (reason && Object.values(ReportReason).includes(reason)) where.reason = reason;
+
+        const [reports, total] = await Promise.all([
+            prisma.report.findMany({
+                where,
+                include: {
+                    reporter: { select: { id: true, username: true, displayName: true, avatar: true } },
+                    voicePin: {
+                        select: {
+                            id: true, content: true, audioUrl: true, transcription: true,
+                            emotionLabel: true, emotionScore: true,
+                            user: { select: { id: true, username: true, displayName: true, avatar: true, postingBanned: true } }
+                        }
+                    },
+                    resolvedBy: { select: { id: true, username: true, displayName: true } }
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit
+            }),
+            prisma.report.count({ where })
+        ]);
+
+        // Violation count per voicePin owner
+        const enriched = await Promise.all(reports.map(async (r) => {
+            const violationCount = await countViolations(r.voicePin.user.id);
+            return { ...r, violationCount };
+        }));
+
+        res.status(200).json({ reports: enriched, total, page, totalPages: Math.ceil(total / limit) });
+    } catch (err) {
+        const error = err as Error;
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * @swagger
+ * /report/admin/stats:
+ *   get:
+ *     summary: "[Admin] Get report statistics"
+ *     tags: [Admin]
+ */
+export const adminGetReportStats: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const [
+            totalPending,
+            totalUnderReview,
+            totalResolved,
+            totalDismissed,
+            byReason
+        ] = await Promise.all([
+            prisma.report.count({ where: { status: 'PENDING' } }),
+            prisma.report.count({ where: { status: 'UNDER_REVIEW' } }),
+            prisma.report.count({ where: { status: 'RESOLVED' } }),
+            prisma.report.count({ where: { status: 'DISMISSED' } }),
+            prisma.report.groupBy({ by: ['reason'], _count: { reason: true } })
+        ]);
+
+        res.status(200).json({
+            pending: totalPending,
+            underReview: totalUnderReview,
+            resolved: totalResolved,
+            dismissed: totalDismissed,
+            total: totalPending + totalUnderReview + totalResolved + totalDismissed,
+            byReason: byReason.map(r => ({ reason: r.reason, count: r._count.reason }))
+        });
+    } catch (err) {
+        const error = err as Error;
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * @swagger
+ * /report/admin/{id}/review:
+ *   patch:
+ *     summary: "[Admin] Update report status and resolve"
+ *     tags: [Admin]
+ */
+export const adminReviewReport: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const adminId = (req.user as { id: number }).id;
+        const id = Number(req.params.id);
+        const { status, moderatorNote, violationTags, violationScore } = req.body;
+
+        if (!status || !Object.values(ReportStatus).includes(status)) {
+            res.status(400).json({ message: 'Valid status is required' });
+            return;
+        }
+
+        const report = await prisma.report.findUnique({
+            where: { id },
+            include: {
+                voicePin: { select: { id: true, userId: true, content: true } }
+            }
+        });
+
+        if (!report) {
+            res.status(404).json({ message: 'Report not found' });
+            return;
+        }
+
+        const oldStatus = report.status;
+
+        const updated = await prisma.report.update({
+            where: { id },
+            data: {
+                status,
+                moderatorNote: moderatorNote ?? report.moderatorNote,
+                violationTags: violationTags ?? report.violationTags,
+                violationScore: violationScore ?? report.violationScore,
+                resolvedById: adminId,
+                resolvedAt: ['RESOLVED', 'DISMISSED'].includes(status) ? new Date() : report.resolvedAt
+            }
+        });
+
+        // Audit log
+        await createAuditLog(adminId, `REPORT_${status}`, 'Report', id, {
+            oldStatus,
+            newStatus: status,
+            voicePinId: report.voicePinId,
+            moderatorNote,
+            violationTags,
+            violationScore
+        });
+
+        // If RESOLVED → check violation count → maybe ban
+        if (status === 'RESOLVED') {
+            const violationCount = await countViolations(report.voicePin.userId);
+
+            // Notify reported user
+            await createNotification(
+                report.voicePin.userId,
+                NotificationType.VOICE_REPORTED,
+                {
+                    reportId: id,
+                    voicePinId: report.voicePinId,
+                    message: `Bài đăng của bạn đã bị xác nhận vi phạm. Tổng vi phạm: ${violationCount}/3`,
+                    violationCount
+                }
+            );
+
+            if (violationCount >= 3) {
+                await prisma.user.update({
+                    where: { id: report.voicePin.userId },
+                    data: { postingBanned: true }
+                });
+
+                await createNotification(
+                    report.voicePin.userId,
+                    NotificationType.POSTING_BANNED,
+                    {
+                        message: 'Tài khoản của bạn đã bị khóa quyền đăng bài do vi phạm chính sách 3 lần.',
+                        violationCount
+                    }
+                );
+
+                await createAuditLog(adminId, 'USER_POSTING_BANNED', 'User', report.voicePin.userId, {
+                    reason: 'Exceeded 3 violations',
+                    violationCount,
+                    triggeredByReport: id
+                });
+            }
+        }
+
+        res.status(200).json(updated);
+    } catch (err) {
+        const error = err as Error;
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * @swagger
+ * /report/admin/audit-logs:
+ *   get:
+ *     summary: "[Admin] Get audit logs"
+ *     tags: [Admin]
+ */
+export const adminGetAuditLogs: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const page = Math.max(1, Number(req.query.page) || 1);
+        const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
+        const skip = (page - 1) * limit;
+
+        const [logs, total] = await Promise.all([
+            prisma.auditLog.findMany({
+                include: {
+                    admin: { select: { id: true, username: true, displayName: true, avatar: true } }
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit
+            }),
+            prisma.auditLog.count()
+        ]);
+
+        res.status(200).json({ logs, total, page, totalPages: Math.ceil(total / limit) });
+    } catch (err) {
+        const error = err as Error;
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * @swagger
+ * /report/admin/unban/{userId}:
+ *   patch:
+ *     summary: "[Admin] Remove posting ban from user"
+ *     tags: [Admin]
+ */
+export const adminUnbanUser: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const adminId = (req.user as { id: number }).id;
+        const userId = Number(req.params.userId);
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+
+        await prisma.user.update({ where: { id: userId }, data: { postingBanned: false } });
+
+        await createAuditLog(adminId, 'USER_POSTING_UNBANNED', 'User', userId, {
+            reason: 'Admin manually removed posting ban'
+        });
+
+        await createNotification(userId, NotificationType.SYSTEM_MESSAGE, {
+            message: 'Quyền đăng bài của bạn đã được khôi phục bởi quản trị viên.'
+        });
+
+        res.status(200).json({ message: 'User posting ban removed' });
+    } catch (err) {
+        const error = err as Error;
+        res.status(500).json({ message: error.message });
     }
 };
