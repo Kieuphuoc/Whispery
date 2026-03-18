@@ -652,6 +652,9 @@ export const updateVoicePin = async (req, res) => {
  */
 export const getPublicVoicePin = async (_req, res) => {
     try {
+        // #region agent log
+        fetch('http://host.docker.internal:7563/ingest/7bee5893-5664-4b9f-a0df-553827003edb', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41f2f' }, body: JSON.stringify({ sessionId: 'a41f2f', runId: 'pre-fix', hypothesisId: 'H2', location: 'dist/controllers/voiceController.js:getPublicVoicePin', message: 'enter', data: {}, timestamp: Date.now() }) }).catch(() => { });
+        // #endregion
         const voicePins = await prisma.voicePin.findMany({
             where: { visibility: 'PUBLIC', deletedAt: null },
             include: {
@@ -664,6 +667,9 @@ export const getPublicVoicePin = async (_req, res) => {
     }
     catch (err) {
         const error = err;
+        // #region agent log
+        fetch('http://host.docker.internal:7563/ingest/7bee5893-5664-4b9f-a0df-553827003edb', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41f2f' }, body: JSON.stringify({ sessionId: 'a41f2f', runId: 'pre-fix', hypothesisId: 'H2', location: 'dist/controllers/voiceController.js:getPublicVoicePin', message: 'error', data: { name: error?.name, message: error?.message }, timestamp: Date.now() }) }).catch(() => { });
+        // #endregion
         res.status(400).json({ message: error.message });
     }
 };
@@ -783,6 +789,9 @@ export const getPublicVoicePinByUser = async (req, res) => {
  */
 export const getMyPublicVoicePins = async (req, res) => {
     try {
+        // #region agent log
+        fetch('http://host.docker.internal:7563/ingest/7bee5893-5664-4b9f-a0df-553827003edb', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41f2f' }, body: JSON.stringify({ sessionId: 'a41f2f', runId: 'pre-fix', hypothesisId: 'H3', location: 'dist/controllers/voiceController.js:getMyPublicVoicePins', message: 'enter', data: {}, timestamp: Date.now() }) }).catch(() => { });
+        // #endregion
         const voicePins = await prisma.voicePin.findMany({
             where: { visibility: 'PUBLIC', userId: req.user.id, deletedAt: null },
             include: {
@@ -795,6 +804,9 @@ export const getMyPublicVoicePins = async (req, res) => {
     }
     catch (err) {
         const error = err;
+        // #region agent log
+        fetch('http://host.docker.internal:7563/ingest/7bee5893-5664-4b9f-a0df-553827003edb', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41f2f' }, body: JSON.stringify({ sessionId: 'a41f2f', runId: 'pre-fix', hypothesisId: 'H3', location: 'dist/controllers/voiceController.js:getMyPublicVoicePins', message: 'error', data: { name: error?.name, message: error?.message }, timestamp: Date.now() }) }).catch(() => { });
+        // #endregion
         res.status(400).json({ message: error.message });
     }
 };
@@ -1015,18 +1027,44 @@ export const getRetrieveVoicePin = async (req, res) => {
 export const getVoicePin = async (req, res) => {
     try {
         const userId = req.user.id;
-        const voicePins = await prisma.voicePin.findMany({
-            where: { userId, deletedAt: null },
-            include: {
-                user: { select: { id: true, username: true, displayName: true, avatar: true } },
-                images: true
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-        res.status(200).json({ data: voicePins });
+        // #region agent log
+        fetch('http://host.docker.internal:7563/ingest/7bee5893-5664-4b9f-a0df-553827003edb', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41f2f' }, body: JSON.stringify({ sessionId: 'a41f2f', runId: 'pre-fix', hypothesisId: 'H1', location: 'dist/controllers/voiceController.js:getVoicePin', message: 'enter', data: {}, timestamp: Date.now() }) }).catch(() => { });
+        // #endregion
+        // NOTE: PostGIS geometry column "location" is Unsupported in Prisma schema.
+        // Using queryRaw to extract lat/lng and avoid deserializing geometry.
+        const voicePins = await prisma.$queryRaw`
+            SELECT 
+                v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
+                v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
+                v."emotionLabel", v."emotionScore", v."stickerUrl", v.transcription,
+                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
+                v.status, v."deletedAt", v."createdAt", v."updatedAt", v."userId",
+                ST_Y(v.location) as latitude, 
+                ST_X(v.location) as longitude,
+                u.id as "userId",
+                u.username,
+                u."displayName",
+                u.avatar
+            FROM "VoicePin" v
+            LEFT JOIN "User" u ON v."userId" = u.id
+            WHERE v."userId" = ${userId} AND v."deletedAt" IS NULL
+            ORDER BY v."createdAt" DESC
+        `;
+        const results = await Promise.all(voicePins.map(async (v) => {
+            const images = await prisma.image.findMany({ where: { voicePinId: v.id } });
+            return {
+                ...v,
+                user: { id: v.userId, username: v.username, displayName: v.displayName, avatar: v.avatar },
+                images
+            };
+        }));
+        res.status(200).json({ data: results });
     }
     catch (err) {
         const error = err;
+        // #region agent log
+        fetch('http://host.docker.internal:7563/ingest/7bee5893-5664-4b9f-a0df-553827003edb', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a41f2f' }, body: JSON.stringify({ sessionId: 'a41f2f', runId: 'pre-fix', hypothesisId: 'H1', location: 'dist/controllers/voiceController.js:getVoicePin', message: 'error', data: { name: error?.name, message: error?.message }, timestamp: Date.now() }) }).catch(() => { });
+        // #endregion
         res.status(400).json({ message: error.message });
     }
 };

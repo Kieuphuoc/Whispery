@@ -418,7 +418,12 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
                 ${deviceModel || null}, 
                 ${osVersion || null},
                 NOW()
-            ) RETURNING *
+            ) RETURNING 
+                id, "audioUrl", content, visibility, "userId", "audioDuration", 
+                "audioSize", address, "isAnonymous", type, "unlockRadius", 
+                "emotionLabel", "emotionScore", "stickerUrl", "deviceModel", 
+                "osVersion", "updatedAt", "createdAt", status, "listensCount", 
+                "reactionsCount", "commentsCount", transcription
         `;
         const voicePin = voicePins[0];
 
@@ -756,7 +761,11 @@ export const getPublicVoicePin: RequestHandler = async (_req, res): Promise<void
     try {
         const voicePins: any[] = await prisma.$queryRaw`
             SELECT 
-                v.*, 
+                v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
+                v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
+                v."emotionLabel", v."emotionScore", v."stickerUrl", v.transcription,
+                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
+                v.status, v."deletedAt", v."createdAt", v."updatedAt", v."userId",
                 ST_Y(v.location) as latitude, 
                 ST_X(v.location) as longitude,
                 u.id as "userId",
@@ -842,7 +851,11 @@ export const getPublicVoicePinByUser: RequestHandler = async (req, res): Promise
         const id = req.params.id as string;
         const voicePins: any[] = await prisma.$queryRaw`
             SELECT 
-                v.*, 
+                v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
+                v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
+                v."emotionLabel", v."emotionScore", v."stickerUrl", v.transcription,
+                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
+                v.status, v."deletedAt", v."createdAt", v."updatedAt", v."userId",
                 ST_Y(v.location) as latitude, 
                 ST_X(v.location) as longitude,
                 u.id as "userId",
@@ -919,9 +932,13 @@ export const getPublicVoicePinByUser: RequestHandler = async (req, res): Promise
 export const getMyPublicVoicePins: RequestHandler = async (req, res): Promise<void> => {
     try {
         const userId = req.user!.id;
-        const voicePins: any[] = await prisma.$queryRaw`
+         const voicePins: any[] = await prisma.$queryRaw`
             SELECT 
-                v.*, 
+                v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
+                v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
+                v."emotionLabel", v."emotionScore", v."stickerUrl", v.transcription,
+                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
+                v.status, v."deletedAt", v."createdAt", v."updatedAt", v."userId",
                 ST_Y(v.location) as latitude, 
                 ST_X(v.location) as longitude,
                 u.id as "userId",
@@ -1013,9 +1030,13 @@ export const getFriendsVisibleVoicePins: RequestHandler = async (req, res): Prom
             return;
         }
 
-        const voicePins: any[] = await prisma.$queryRaw`
+         const voicePins: any[] = await prisma.$queryRaw`
             SELECT 
-                v.*, 
+                v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
+                v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
+                v."emotionLabel", v."emotionScore", v."stickerUrl", v.transcription,
+                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
+                v.status, v."deletedAt", v."createdAt", v."updatedAt", v."userId",
                 ST_Y(v.location) as latitude, 
                 ST_X(v.location) as longitude,
                 u.id as "userId",
@@ -1127,7 +1148,11 @@ export const getRetrieveVoicePin: RequestHandler = async (req, res): Promise<voi
         // Retrieve with lat/lng extraction
         const voicePins: any[] = await prisma.$queryRaw`
             SELECT 
-                v.*, 
+                v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
+                v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
+                v."emotionLabel", v."emotionScore", v."stickerUrl", v.transcription,
+                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
+                v.status, v."deletedAt", v."createdAt", v."updatedAt", v."userId",
                 ST_Y(v.location) as latitude, 
                 ST_X(v.location) as longitude,
                 u.id as "userId",
@@ -1217,7 +1242,11 @@ export const getVoicePin: RequestHandler = async (req, res): Promise<void> => {
 
         const voicePins: any[] = await prisma.$queryRaw`
             SELECT 
-                v.*, 
+                v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
+                v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
+                v."emotionLabel", v."emotionScore", v."stickerUrl", v.transcription,
+                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
+                v.status, v."deletedAt", v."createdAt", v."updatedAt", v."userId",
                 ST_Y(v.location) as latitude, 
                 ST_X(v.location) as longitude,
                 u.id as "userId",
