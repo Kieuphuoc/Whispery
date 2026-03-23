@@ -36,7 +36,9 @@
     
     // --- Account Status ---
     status          UserStatus @default(ACTIVE)
-    postingBanned   Boolean    @default(false) // Banned from posting after 3 violations
+    role            UserRole   @default(USER)
+    reputationScore Int        @default(100)
+    postingBanned   Boolean    @default(false)
     
     // --- Soft Delete ---
     deletedAt       DateTime?
@@ -70,6 +72,12 @@
     SUSPENDED
     BANNED
     DEACTIVATED
+  }
+
+  enum UserRole {
+    USER
+    MODERATOR
+    ADMIN
   }
 
   // ==========================================

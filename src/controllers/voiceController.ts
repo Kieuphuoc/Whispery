@@ -4,6 +4,7 @@ import { uploadToAzure } from '../config/azureStorage.js';
 import { Visibility, VoiceType, Prisma } from '@prisma/client';
 import { checkVoiceActivityAndSize } from '../utils/vadUtils.js';
 import { processAudioBlob } from '../services/audioModerationService.js';
+import { analyzeAudioEmotion } from '../services/geminiAudio.service.js';
 
 /**
  * @swagger
@@ -345,6 +346,19 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
             return;
         }
 
+        let finalEmotionLabel = emotionLabel || null;
+        let finalEmotionScore = emotionScore ? parseFloat(emotionScore) : null;
+        let finalTranscription = null;
+
+        if (audioFile) {
+            console.log("createVoicePin: Analyzing audio with Gemini...");
+            const geminiResult = await analyzeAudioEmotion(audioFile.buffer, audioFile.mimetype);
+            if (geminiResult.emotion_label) finalEmotionLabel = geminiResult.emotion_label;
+            if (geminiResult.confidence_score) finalEmotionScore = geminiResult.confidence_score;
+            if (geminiResult.transcript) finalTranscription = geminiResult.transcript;
+            console.log("createVoicePin: Gemini Analysis Complete", { finalEmotionLabel, finalEmotionScore });
+        }
+
         console.log("createVoicePin: Uploading audio...");
         const audioUrl = await uploadToAzure(
             audioFile.buffer,
@@ -399,7 +413,8 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
                 "stickerUrl", 
                 "deviceModel", 
                 "osVersion",
-                "updatedAt"
+                "updatedAt",
+                "transcription"
             ) VALUES (
                 ${audioUrl}, 
                 ${description || null}, 
@@ -412,18 +427,14 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
                 ${(isAnonymous === 'true' || isAnonymous === true)}, 
                 ${(type || VoiceType.STANDARD) as any}, 
                 ${unlockRadius ? parseInt(unlockRadius) : 0}, 
-                ${emotionLabel || null}, 
-                ${emotionScore ? parseFloat(emotionScore) : null}, 
+                ${finalEmotionLabel}, 
+                ${finalEmotionScore}, 
                 ${stickerUrl || null}, 
                 ${deviceModel || null}, 
                 ${osVersion || null},
-                NOW()
-            ) RETURNING 
-                id, "audioUrl", content, visibility, "userId", "audioDuration", 
-                "audioSize", address, "isAnonymous", type, "unlockRadius", 
-                "emotionLabel", "emotionScore", "stickerUrl", "deviceModel", 
-                "osVersion", "updatedAt", "createdAt", status, "listensCount", 
-                "reactionsCount", "commentsCount", transcription
+                NOW(),
+                ${finalTranscription}
+            ) RETURNING *
         `;
         const voicePin = voicePins[0];
 
@@ -1242,11 +1253,7 @@ export const getVoicePin: RequestHandler = async (req, res): Promise<void> => {
 
         const voicePins: any[] = await prisma.$queryRaw`
             SELECT 
-                v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
-                v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
-                v."emotionLabel", v."emotionScore", v."stickerUrl", v.transcription,
-                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
-                v.status, v."deletedAt", v."createdAt", v."updatedAt", v."userId",
+                v.*, 
                 ST_Y(v.location) as latitude, 
                 ST_X(v.location) as longitude,
                 u.id as "userId",

@@ -3,6 +3,86 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+type VoicePinSeedInput = {
+    audioUrl: string;
+    content?: string | null;
+    audioDuration?: number | null;
+    audioSize?: number | null;
+    lat: number;
+    lng: number;
+    address?: string | null;
+    visibility?: Visibility;
+    isAnonymous?: boolean;
+    type?: VoiceType;
+    unlockRadius?: number;
+    emotionLabel?: string | null;
+    emotionScore?: number | null;
+    stickerUrl?: string | null;
+    deviceModel?: string | null;
+    osVersion?: string | null;
+    listensCount?: number;
+    reactionsCount?: number;
+    commentsCount?: number;
+    userId: number;
+    createdAt?: Date | string;
+};
+
+async function createVoicePinRaw(input: VoicePinSeedInput) {
+    const visibility = input.visibility ?? Visibility.PUBLIC;
+    const type = input.type ?? VoiceType.STANDARD;
+
+    const rows = await prisma.$queryRaw<Array<{ id: number }>>`
+        INSERT INTO "VoicePin" (
+            "audioUrl",
+            "content",
+            "audioDuration",
+            "audioSize",
+            "location",
+            "address",
+            "visibility",
+            "isAnonymous",
+            "type",
+            "unlockRadius",
+            "emotionLabel",
+            "emotionScore",
+            "stickerUrl",
+            "deviceModel",
+            "osVersion",
+            "listensCount",
+            "reactionsCount",
+            "commentsCount",
+            "userId",
+            "createdAt",
+            "updatedAt"
+        ) VALUES (
+            ${input.audioUrl},
+            ${input.content ?? null},
+            ${input.audioDuration ?? null},
+            ${input.audioSize ?? null},
+            ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326),
+            ${input.address ?? null},
+            CAST(${visibility} AS "Visibility"),
+            ${input.isAnonymous ?? false},
+            CAST(${type} AS "VoiceType"),
+            ${input.unlockRadius ?? 0},
+            ${input.emotionLabel ?? null},
+            ${input.emotionScore ?? null},
+            ${input.stickerUrl ?? null},
+            ${input.deviceModel ?? null},
+            ${input.osVersion ?? null},
+            ${input.listensCount ?? 0},
+            ${input.reactionsCount ?? 0},
+            ${input.commentsCount ?? 0},
+            ${input.userId},
+            ${input.createdAt ?? new Date()},
+            ${input.createdAt ?? new Date()}
+        )
+        RETURNING "id";
+    `;
+
+    return rows[0];
+}
+
 async function main() {
     console.log('🌱 Starting seed...');
 
@@ -240,326 +320,334 @@ async function main() {
     console.log('🎤 Creating voice pins...');
     const voicePins = await Promise.all([
         // John's voice pins
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                audioDuration: 30,
-                audioSize: 720000,
-                latitude: 10.7769,
-                longitude: 106.7009,
-                address: 'Quận 1, Thành phố Hồ Chí Minh, Việt Nam',
-                visibility: Visibility.PUBLIC,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'Vui vẻ',
-                emotionScore: 0.92,
-                deviceModel: 'iPhone 14 Pro',
-                osVersion: 'iOS 17.0',
-                listensCount: 125,
-                reactionsCount: 42,
-                commentsCount: 8,
-                userId: users[0].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            audioDuration: 30,
+            audioSize: 720000,
+            lat: 10.7769,
+            lng: 106.7009,
+            address: 'Quận 1, Thành phố Hồ Chí Minh, Việt Nam',
+            visibility: Visibility.PUBLIC,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'Vui vẻ',
+            emotionScore: 0.92,
+            deviceModel: 'iPhone 14 Pro',
+            osVersion: 'iOS 17.0',
+            listensCount: 125,
+            reactionsCount: 42,
+            commentsCount: 8,
+            userId: users[0].id,
+            createdAt: new Date('2026-03-15T10:00:00Z')
         }),
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Tin nhắn bí mật chỉ dành cho những người khám phá! 🔍',
-                audioDuration: 30,
-                audioSize: 480000,
-                latitude: 10.7829,
-                longitude: 106.6945,
-                address: 'Chợ Bến Thành, Thành phố Hồ Chí Minh',
-                visibility: Visibility.PUBLIC,
-                type: VoiceType.HIDDEN_AR,
-                unlockRadius: 50,
-                emotionLabel: 'Bí ẩn',
-                emotionScore: 0.78,
-                deviceModel: 'iPhone 14 Pro',
-                osVersion: 'iOS 17.0',
-                listensCount: 35,
-                reactionsCount: 18,
-                commentsCount: 3,
-                userId: users[0].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Tin nhắn bí mật chỉ dành cho những người khám phá! 🔍',
+            audioDuration: 30,
+            audioSize: 480000,
+            lat: 10.7829,
+            lng: 106.6945,
+            address: 'Chợ Bến Thành, Thành phố Hồ Chí Minh',
+            visibility: Visibility.PUBLIC,
+            type: VoiceType.HIDDEN_AR,
+            unlockRadius: 50,
+            emotionLabel: 'Bí ẩn',
+            emotionScore: 0.78,
+            deviceModel: 'iPhone 14 Pro',
+            osVersion: 'iOS 17.0',
+            listensCount: 35,
+            reactionsCount: 18,
+            commentsCount: 3,
+            userId: users[0].id,
+            createdAt: new Date('2026-03-10T14:30:00Z')
         }),
         // John's additional voice pins
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Buổi chiều mưa ở Sài Gòn, nhớ quá... 🌧️',
-                audioDuration: 30,
-                audioSize: 560000,
-                latitude: 10.7731,
-                longitude: 106.6980,
-                address: 'Nhà thờ Đức Bà, Quận 1, Thành phố Hồ Chí Minh',
-                visibility: Visibility.PUBLIC,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'U sầu',
-                emotionScore: 0.88,
-                deviceModel: 'iPhone 14 Pro',
-                osVersion: 'iOS 17.0',
-                listensCount: 78,
-                reactionsCount: 35,
-                commentsCount: 11,
-                userId: users[0].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Buổi chiều mưa ở Sài Gòn, nhớ quá... 🌧️',
+            audioDuration: 30,
+            audioSize: 560000,
+            lat: 10.7731,
+            lng: 106.6980,
+            address: 'Nhà thờ Đức Bà, Quận 1, Thành phố Hồ Chí Minh',
+            visibility: Visibility.PUBLIC,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'U sầu',
+            emotionScore: 0.88,
+            deviceModel: 'iPhone 14 Pro',
+            osVersion: 'iOS 17.0',
+            listensCount: 78,
+            reactionsCount: 35,
+            commentsCount: 11,
+            userId: users[0].id,
+            createdAt: new Date('2026-03-05T09:15:00Z')
         }),
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Buổi sáng bình yên với ly cà phê sữa đá ☕',
-                audioDuration: 30,
-                audioSize: 800000,
-                latitude: 10.7850,
-                longitude: 106.6950,
-                address: 'Cà phê Trung Nguyên, Quận 3, Thành phố Hồ Chí Minh',
-                visibility: Visibility.PUBLIC,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'Bình yên',
-                emotionScore: 0.91,
-                deviceModel: 'iPhone 14 Pro',
-                osVersion: 'iOS 17.0',
-                listensCount: 95,
-                reactionsCount: 48,
-                commentsCount: 7,
-                userId: users[0].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Buổi sáng bình yên với ly cà phê sữa đá ☕',
+            audioDuration: 30,
+            audioSize: 800000,
+            lat: 10.7850,
+            lng: 106.6950,
+            address: 'Cà phê Trung Nguyên, Quận 3, Thành phố Hồ Chí Minh',
+            visibility: Visibility.PUBLIC,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'Bình yên',
+            emotionScore: 0.91,
+            deviceModel: 'iPhone 14 Pro',
+            osVersion: 'iOS 17.0',
+            listensCount: 95,
+            reactionsCount: 48,
+            commentsCount: 7,
+            userId: users[0].id,
+            createdAt: new Date('2026-02-28T08:00:00Z')
         }),
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Hồi tưởng về tuổi thơ với những gánh hàng rong đêm khuya 🌙',
-                audioDuration: 30,
-                audioSize: 1040000,
-                latitude: 10.7628,
-                longitude: 106.6602,
-                address: 'Chợ Lớn, Quận 5, Thành phố Hồ Chí Minh',
-                visibility: Visibility.PUBLIC,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'Hoài niệm',
-                emotionScore: 0.94,
-                deviceModel: 'iPhone 14 Pro',
-                osVersion: 'iOS 17.0',
-                listensCount: 145,
-                reactionsCount: 67,
-                commentsCount: 19,
-                userId: users[0].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Hồi tưởng về tuổi thơ với những gánh hàng rong đêm khuya 🌙',
+            audioDuration: 30,
+            audioSize: 1040000,
+            lat: 10.7628,
+            lng: 106.6602,
+            address: 'Chợ Lớn, Quận 5, Thành phố Hồ Chí Minh',
+            visibility: Visibility.PUBLIC,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'Hoài niệm',
+            emotionScore: 0.94,
+            deviceModel: 'iPhone 14 Pro',
+            osVersion: 'iOS 17.0',
+            listensCount: 145,
+            reactionsCount: 67,
+            commentsCount: 19,
+            userId: users[0].id,
+            createdAt: new Date('2026-02-20T21:45:00Z')
         }),
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Buổi hẹn hò dưới ánh đèn phố đi bộ 💕',
-                audioDuration: 30,
-                audioSize: 672000,
-                latitude: 10.7745,
-                longitude: 106.7030,
-                address: 'Phố đi bộ Nguyễn Huệ, Quận 1, Thành phố Hồ Chí Minh',
-                visibility: Visibility.FRIENDS,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'Lãng mạn',
-                emotionScore: 0.96,
-                deviceModel: 'iPhone 14 Pro',
-                osVersion: 'iOS 17.0',
-                listensCount: 52,
-                reactionsCount: 38,
-                commentsCount: 5,
-                userId: users[0].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Buổi hẹn hò dưới ánh đèn phố đi bộ 💕',
+            audioDuration: 30,
+            audioSize: 672000,
+            lat: 10.7745,
+            lng: 106.7030,
+            address: 'Phố đi bộ Nguyễn Huệ, Quận 1, Thành phố Hồ Chí Minh',
+            visibility: Visibility.FRIENDS,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'Lãng mạn',
+            emotionScore: 0.96,
+            deviceModel: 'iPhone 14 Pro',
+            osVersion: 'iOS 17.0',
+            listensCount: 52,
+            reactionsCount: 38,
+            commentsCount: 5,
+            userId: users[0].id,
+            createdAt: new Date('2026-03-12T19:20:00Z')
         }),
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Khám phá một con hẻm nhỏ ở Sài Gòn, tìm thấy một quán ăn tuyệt vời! 🍲',
-                audioDuration: 30,
-                audioSize: 608000,
-                latitude: 10.7810,
-                longitude: 106.6890,
-                address: 'Hẻm 138 Lê Thị Riêng, Quận 1, Thành phố Hồ Chí Minh',
-                visibility: Visibility.PUBLIC,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'Cô đơn',
-                emotionScore: 0.82,
-                deviceModel: 'iPhone 14 Pro',
-                osVersion: 'iOS 17.0',
-                listensCount: 62,
-                reactionsCount: 29,
-                commentsCount: 8,
-                userId: users[0].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Khám phá một con hẻm nhỏ ở Sài Gòn, tìm thấy một quán ăn tuyệt vời! 🍲',
+            audioDuration: 30,
+            audioSize: 608000,
+            lat: 10.7810,
+            lng: 106.6890,
+            address: 'Hẻm 138 Lê Thị Riêng, Quận 1, Thành phố Hồ Chí Minh',
+            visibility: Visibility.PUBLIC,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'Cô đơn',
+            emotionScore: 0.82,
+            deviceModel: 'iPhone 14 Pro',
+            osVersion: 'iOS 17.0',
+            listensCount: 62,
+            reactionsCount: 29,
+            commentsCount: 8,
+            userId: users[0].id,
+            createdAt: new Date('2026-03-01T15:10:00Z')
         }),
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Buổi hòa nhạc tuyệt vời! Năng lượng khó tin suốt cả đêm 🎶🔥',
-                audioDuration: 30,
-                audioSize: 448000,
-                latitude: 10.7880,
-                longitude: 106.7050,
-                address: 'Nhà hát Thành phố, Quận 1, Thành phố Hồ Chi Minh',
-                visibility: Visibility.PUBLIC,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'Năng động',
-                emotionScore: 0.97,
-                deviceModel: 'iPhone 14 Pro',
-                osVersion: 'iOS 17.0',
-                listensCount: 189,
-                reactionsCount: 92,
-                commentsCount: 24,
-                userId: users[0].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Buổi hòa nhạc tuyệt vời! Năng lượng khó tin suốt cả đêm 🎶🔥',
+            audioDuration: 30,
+            audioSize: 448000,
+            lat: 10.7880,
+            lng: 106.7050,
+            address: 'Nhà hát Thành phố, Quận 1, Thành phố Hồ Chi Minh',
+            visibility: Visibility.PUBLIC,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'Năng động',
+            emotionScore: 0.97,
+            deviceModel: 'iPhone 14 Pro',
+            osVersion: 'iOS 17.0',
+            listensCount: 189,
+            reactionsCount: 92,
+            commentsCount: 24,
+            userId: users[0].id,
+            createdAt: new Date('2026-02-15T22:30:00Z')
         }),
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Bình minh trên sông Sài Gòn, thực sự tuyệt đẹp 🌅',
-                audioDuration: 30,
-                audioSize: 1200000,
-                latitude: 10.7870,
-                longitude: 106.7150,
-                address: 'Bến Bạch Đằng, Quận 1, Thành phố Hồ Chí Minh',
-                visibility: Visibility.PUBLIC,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'Truyền cảm hứng',
-                emotionScore: 0.93,
-                deviceModel: 'iPhone 14 Pro',
-                osVersion: 'iOS 17.0',
-                listensCount: 112,
-                reactionsCount: 56,
-                commentsCount: 14,
-                userId: users[0].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Bình minh trên sông Sài Gòn, thực sự tuyệt đẹp 🌅',
+            audioDuration: 30,
+            audioSize: 1200000,
+            lat: 10.7870,
+            lng: 106.7150,
+            address: 'Bến Bạch Đằng, Quận 1, Thành phố Hồ Chí Minh',
+            visibility: Visibility.PUBLIC,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'Truyền cảm hứng',
+            emotionScore: 0.93,
+            deviceModel: 'iPhone 14 Pro',
+            osVersion: 'iOS 17.0',
+            listensCount: 112,
+            reactionsCount: 56,
+            commentsCount: 14,
+            userId: users[0].id,
+            createdAt: new Date('2026-03-18T06:00:00Z')
         }),
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Suy ngẫm về cuộc đời giữa những con hẻm cũ 🤔',
-                audioDuration: 30,
-                audioSize: 1408000,
-                latitude: 10.7720,
-                longitude: 106.6920,
-                address: 'Đường sách Nguyễn Văn Bình, Quận 1, Thành phố Hồ Chi Minh',
-                visibility: Visibility.PUBLIC,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'Giận dữ',
-                emotionScore: 0.86,
-                deviceModel: 'iPhone 14 Pro',
-                osVersion: 'iOS 17.0',
-                listensCount: 83,
-                reactionsCount: 41,
-                commentsCount: 16,
-                userId: users[0].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Suy ngẫm về cuộc đời giữa những con hẻm cũ 🤔',
+            audioDuration: 30,
+            audioSize: 1408000,
+            lat: 10.7720,
+            lng: 106.6920,
+            address: 'Đường sách Nguyễn Văn Bình, Quận 1, Thành phố Hồ Chi Minh',
+            visibility: Visibility.PUBLIC,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'Giận dữ',
+            emotionScore: 0.86,
+            deviceModel: 'iPhone 14 Pro',
+            osVersion: 'iOS 17.0',
+            listensCount: 83,
+            reactionsCount: 41,
+            commentsCount: 16,
+            userId: users[0].id,
+            createdAt: new Date('2026-03-08T11:20:00Z')
         }),
         // Jane's voice pins
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Gợi ý quán cà phê yêu thích của tôi ☕',
-                audioDuration: 30,
-                audioSize: 960000,
-                latitude: 10.7867,
-                longitude: 106.7011,
-                address: 'Phố đi bộ Nguyễn Huệ, Quận 1',
-                visibility: Visibility.PUBLIC,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'Bình yên',
-                emotionScore: 0.85,
-                deviceModel: 'Samsung Galaxy S24',
-                osVersion: 'Android 14',
-                listensCount: 89,
-                reactionsCount: 31,
-                commentsCount: 12,
-                userId: users[1].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Gợi ý quán cà phê yêu thích của tôi ☕',
+            audioDuration: 30,
+            audioSize: 960000,
+            lat: 10.7867,
+            lng: 106.7011,
+            address: 'Phố đi bộ Nguyễn Huệ, Quận 1',
+            visibility: Visibility.PUBLIC,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'Bình yên',
+            emotionScore: 0.85,
+            deviceModel: 'Samsung Galaxy S24',
+            osVersion: 'Android 14',
+            listensCount: 89,
+            reactionsCount: 31,
+            commentsCount: 12,
+            userId: users[1].id,
+            createdAt: new Date('2026-02-25T16:40:00Z')
         }),
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Suy nghĩ riêng tư chỉ dành cho bạn bè 💭',
-                audioDuration: 30,
-                audioSize: 1440000,
-                latitude: 10.7900,
-                longitude: 106.7100,
-                address: 'Landmark 81, Quận Bình Thạnh',
-                visibility: Visibility.FRIENDS,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'Hoài niệm',
-                emotionScore: 0.72,
-                deviceModel: 'Samsung Galaxy S24',
-                osVersion: 'Android 14',
-                listensCount: 15,
-                reactionsCount: 8,
-                commentsCount: 2,
-                userId: users[1].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Suy nghĩ riêng tư chỉ dành cho bạn bè 💭',
+            audioDuration: 30,
+            audioSize: 1440000,
+            lat: 10.7900,
+            lng: 106.7100,
+            address: 'Landmark 81, Quận Bình Thạnh',
+            visibility: Visibility.FRIENDS,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'Hoài niệm',
+            emotionScore: 0.72,
+            deviceModel: 'Samsung Galaxy S24',
+            osVersion: 'Android 14',
+            listensCount: 15,
+            reactionsCount: 8,
+            commentsCount: 2,
+            userId: users[1].id,
+            createdAt: new Date('2026-03-14T20:15:00Z')
         }),
         // Alex's voice pins
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Phát hiện món ăn đường phố tuyệt vời! 🍜',
-                audioDuration: 30,
-                audioSize: 640000,
-                latitude: 10.7620,
-                longitude: 106.6830,
-                address: 'Quận 5, Thành phố Hồ Chí Minh',
-                visibility: Visibility.PUBLIC,
-                isAnonymous: true,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'Vui vẻ',
-                emotionScore: 0.95,
-                deviceModel: 'Pixel 8 Pro',
-                osVersion: 'Android 14',
-                listensCount: 67,
-                reactionsCount: 25,
-                commentsCount: 6,
-                userId: users[2].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Phát hiện món ăn đường phố tuyệt vời! 🍜',
+            audioDuration: 30,
+            audioSize: 640000,
+            lat: 10.7620,
+            lng: 106.6830,
+            address: 'Quận 5, Thành phố Hồ Chí Minh',
+            visibility: Visibility.PUBLIC,
+            isAnonymous: true,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'Vui vẻ',
+            emotionScore: 0.95,
+            deviceModel: 'Pixel 8 Pro',
+            osVersion: 'Android 14',
+            listensCount: 67,
+            reactionsCount: 25,
+            commentsCount: 6,
+            userId: users[2].id,
+            createdAt: new Date('2026-03-03T12:00:00Z')
         }),
         // Sarah's voice pins
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Thông báo buổi gặp gỡ công nghệ! Tham gia cùng chúng tôi nhé! 💻',
-                audioDuration: 30,
-                audioSize: 1920000,
-                latitude: 10.8000,
-                longitude: 106.6500,
-                address: 'Quận 7, Thành phố Hồ Chí Minh',
-                visibility: Visibility.PUBLIC,
-                type: VoiceType.STANDARD,
-                emotionLabel: 'Năng động',
-                emotionScore: 0.88,
-                deviceModel: 'iPhone 15 Pro Max',
-                osVersion: 'iOS 17.2',
-                listensCount: 203,
-                reactionsCount: 78,
-                commentsCount: 22,
-                userId: users[3].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Thông báo buổi gặp gỡ công nghệ! Tham gia cùng chúng tôi nhé! 💻',
+            audioDuration: 30,
+            audioSize: 1920000,
+            lat: 10.8000,
+            lng: 106.6500,
+            address: 'Quận 7, Thành phố Hồ Chí Minh',
+            visibility: Visibility.PUBLIC,
+            type: VoiceType.STANDARD,
+            emotionLabel: 'Năng động',
+            emotionScore: 0.88,
+            deviceModel: 'iPhone 15 Pro Max',
+            osVersion: 'iOS 17.2',
+            listensCount: 203,
+            reactionsCount: 78,
+            commentsCount: 22,
+            userId: users[3].id,
+            createdAt: new Date('2026-02-18T14:30:00Z')
         }),
-        prisma.voicePin.create({
-            data: {
-                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: 'Địa điểm ẩn mình tuyệt vời cho các nhiếp ảnh gia 📸',
-                audioDuration: 30,
-                audioSize: 880000,
-                latitude: 10.7550,
-                longitude: 106.7200,
-                address: 'Cầu Thủ Thiêm, Quận 2',
-                visibility: Visibility.PUBLIC,
-                type: VoiceType.HIDDEN_AR,
-                unlockRadius: 100,
-                emotionLabel: 'Lãng mạn',
-                emotionScore: 0.90,
-                deviceModel: 'iPhone 15 Pro Max',
-                osVersion: 'iOS 17.2',
-                listensCount: 45,
-                reactionsCount: 22,
-                commentsCount: 5,
-                userId: users[3].id
-            }
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Địa điểm ẩn mình tuyệt vời cho các nhiếp ảnh gia 📸',
+            audioDuration: 30,
+            audioSize: 880000,
+            lat: 10.7550,
+            lng: 106.7200,
+            address: 'Cầu Thủ Thiêm, Quận 2',
+            visibility: Visibility.PUBLIC,
+            type: VoiceType.HIDDEN_AR,
+            unlockRadius: 100,
+            emotionLabel: 'Lãng mạn',
+            emotionScore: 0.90,
+            deviceModel: 'iPhone 15 Pro Max',
+            osVersion: 'iOS 17.2',
+            listensCount: 45,
+            reactionsCount: 22,
+            commentsCount: 5,
+            userId: users[3].id,
+            createdAt: new Date('2026-03-17T17:50:00Z')
+        }),
+        // Extra AR pin near current test location (from device log)
+        createVoicePinRaw({
+            audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+            content: 'Voice AR test ngay gần bạn — bật camera để khám phá 👀',
+            audioDuration: 25,
+            audioSize: 520000,
+            lat: 10.754872365396297,
+            lng: 106.6069211919823,
+            address: 'AR test (near device current location)',
+            visibility: Visibility.PUBLIC,
+            isAnonymous: true,
+            type: VoiceType.HIDDEN_AR,
+            unlockRadius: 30,
+            emotionLabel: 'Bí ẩn',
+            emotionScore: 0.80,
+            deviceModel: 'Seed',
+            osVersion: 'Seed',
+            listensCount: 0,
+            reactionsCount: 0,
+            commentsCount: 0,
+            userId: users[0].id,
+            createdAt: new Date('2026-03-19T08:00:00Z')
         }),
     ]);
     console.log(`✅ Created ${voicePins.length} voice pins`);

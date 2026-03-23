@@ -15,6 +15,7 @@ import userRoutes from './routes/userRoutes.js';
 import reactionRoutes from './routes/reactionRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import adminStatsRoutes from './routes/adminStatsRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -48,6 +49,7 @@ app.use('/user', userRoutes);
 app.use('/reaction', reactionRoutes);
 app.use('/notification', notificationRoutes);
 app.use('/report', reportRoutes);
+app.use('/admin/stats', adminStatsRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

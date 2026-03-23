@@ -21,6 +21,7 @@
     "@azure-rest/ai-content-safety": "^1.0.1",
     "@azure/core-auth": "^1.10.1",
     "@azure/storage-blob": "^12.31.0",
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.13.0",
     "@types/fluent-ffmpeg": "^2.1.28",
     "bcryptjs": "^3.0.2",
