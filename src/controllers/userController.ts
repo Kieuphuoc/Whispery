@@ -56,6 +56,25 @@ import { UserStatus } from '@prisma/client';
  *           type: string
  *           format: date-time
  *           example: "2024-01-15T10:30:00.000Z"
+ *         isPublicAccount:
+ *           type: boolean
+ *           example: true
+ *         searchable:
+ *           type: boolean
+ *           example: true
+ *         liveLocation:
+ *           type: boolean
+ *           example: false
+ *         sharingLevel:
+ *           type: string
+ *           enum: [EVERYONE, FRIENDS, NONE]
+ *           example: "FRIENDS"
+ *         showActiveStatus:
+ *           type: boolean
+ *           example: true
+ *         showTypingStatus:
+ *           type: boolean
+ *           example: true
  *     UserPublic:
  *       type: object
  *       description: Public user information visible to other users
@@ -251,7 +270,14 @@ export const getMe: RequestHandler = async (req, res): Promise<void> => {
                 // Account status
                 status: true,
                 createdAt: true,
-                updatedAt: true
+                updatedAt: true,
+                // Settings & Privacy
+                isPublicAccount: true,
+                searchable: true,
+                liveLocation: true,
+                sharingLevel: true,
+                showActiveStatus: true,
+                showTypingStatus: true
             }
         });
 
@@ -452,7 +478,7 @@ export const getUserStats: RequestHandler = async (req, res): Promise<void> => {
  *                 example: "Voice pin enthusiast 🎤"
  *     responses:
  *       200:
- *         description: Updated user profile
+ *         description: Updated user profile with new avatar
  *         content:
  *           application/json:
  *             schema:
@@ -477,10 +503,6 @@ export const getUserStats: RequestHandler = async (req, res): Promise<void> => {
  *                     bio:
  *                       type: string
  *                       nullable: true
- *                       example: "Voice pin enthusiast 🎤"
- *                     level:
- *                       type: integer
- *                       example: 5
  *                     updatedAt:
  *                       type: string
  *                       format: date-time
@@ -493,11 +515,26 @@ export const getUserStats: RequestHandler = async (req, res): Promise<void> => {
  */
 export const updateProfile: RequestHandler = async (req, res): Promise<void> => {
     try {
-        const { displayName, bio } = req.body;
+        const { 
+            displayName, 
+            bio, 
+            isPublicAccount, 
+            searchable, 
+            liveLocation, 
+            sharingLevel, 
+            showActiveStatus,
+            showTypingStatus
+        } = req.body;
 
         const updateData: Record<string, unknown> = {};
         if (displayName !== undefined) updateData.displayName = displayName || null;
         if (bio !== undefined) updateData.bio = bio || null;
+        if (isPublicAccount !== undefined) updateData.isPublicAccount = isPublicAccount;
+        if (searchable !== undefined) updateData.searchable = searchable;
+        if (liveLocation !== undefined) updateData.liveLocation = liveLocation;
+        if (sharingLevel !== undefined) updateData.sharingLevel = sharingLevel;
+        if (showActiveStatus !== undefined) updateData.showActiveStatus = showActiveStatus;
+        if (showTypingStatus !== undefined) updateData.showTypingStatus = showTypingStatus;
 
         const updated = await prisma.user.update({
             where: { id: req.user!.id, deletedAt: null },
@@ -509,7 +546,13 @@ export const updateProfile: RequestHandler = async (req, res): Promise<void> => 
                 avatar: true,
                 bio: true,
                 level: true,
-                updatedAt: true
+                updatedAt: true,
+                isPublicAccount: true,
+                searchable: true,
+                liveLocation: true,
+                sharingLevel: true,
+                showActiveStatus: true,
+                showTypingStatus: true
             }
         });
 

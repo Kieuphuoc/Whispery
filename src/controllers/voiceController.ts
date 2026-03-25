@@ -441,7 +441,7 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
         // Create images if any
         if (allImageUrls.length > 0) {
             await prisma.image.createMany({
-                data: allImageUrls.map((url: string) => ({ 
+                data: allImageUrls.map((url: string) => ({
                     imageUrl: url,
                     voicePinId: voicePin.id
                 }))
@@ -449,7 +449,7 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
         }
 
         console.log("createVoicePin: Success", voicePin.id);
-        
+
         // Add latitude/longitude for client response compat
         const responseData = {
             ...voicePin,
@@ -943,7 +943,7 @@ export const getPublicVoicePinByUser: RequestHandler = async (req, res): Promise
 export const getMyPublicVoicePins: RequestHandler = async (req, res): Promise<void> => {
     try {
         const userId = req.user!.id;
-         const voicePins: any[] = await prisma.$queryRaw`
+        const voicePins: any[] = await prisma.$queryRaw`
             SELECT 
                 v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
                 v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
@@ -1041,7 +1041,7 @@ export const getFriendsVisibleVoicePins: RequestHandler = async (req, res): Prom
             return;
         }
 
-         const voicePins: any[] = await prisma.$queryRaw`
+        const voicePins: any[] = await prisma.$queryRaw`
             SELECT 
                 v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
                 v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
@@ -1182,7 +1182,7 @@ export const getRetrieveVoicePin: RequestHandler = async (req, res): Promise<voi
 
         const v = voicePins[0];
         const images = await prisma.image.findMany({ where: { voicePinId: v.id } });
-        const reactions = await prisma.reaction.findMany({ 
+        const reactions = await prisma.reaction.findMany({
             where: { voicePinId: v.id },
             select: { id: true, type: true, userId: true }
         });
@@ -1851,7 +1851,7 @@ export const getVoicePinsByBBox: RequestHandler = async (req, res): Promise<void
             const images = await prisma.image.findMany({ where: { voicePinId: v.id } });
             return {
                 ...v,
-                user: v.isAnonymous 
+                user: v.isAnonymous
                     ? { id: v.userId, username: 'anonymous', displayName: 'Ẩn danh', avatar: null }
                     : { id: v.userId, username: v.username, displayName: v.displayName, avatar: v.avatar },
                 images

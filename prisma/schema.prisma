@@ -45,6 +45,14 @@
 
     createdAt       DateTime  @default(now())
     updatedAt       DateTime  @updatedAt
+    
+    // --- Settings & Privacy ---
+    isPublicAccount   Boolean    @default(true)
+    searchable        Boolean    @default(true)
+    liveLocation      Boolean    @default(false)
+    sharingLevel      SharingLevel @default(FRIENDS)
+    showActiveStatus  Boolean    @default(true)
+    showTypingStatus  Boolean    @default(true)
 
     // Relationships
     voicePins        VoicePin[]
@@ -78,6 +86,12 @@
     USER
     MODERATOR
     ADMIN
+  }
+
+  enum SharingLevel {
+    EVERYONE
+    FRIENDS
+    NONE
   }
 
   // ==========================================
