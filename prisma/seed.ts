@@ -208,7 +208,8 @@ async function main() {
                 level: 3,
                 xp: 350,
                 scanRadius: 2000,
-                status: UserStatus.ACTIVE
+                status: UserStatus.ACTIVE,
+                createdAt: new Date('2025-07-06T10:00:00Z')
             }
         }),
         prisma.user.create({
@@ -649,6 +650,35 @@ async function main() {
             userId: users[0].id,
             createdAt: new Date('2026-03-19T08:00:00Z')
         }),
+        // Thêm 20 voice pins rải rác từ tháng 7-2025 đến nay cho my_ngan_2k
+        ...Array.from({ length: 20 }).map((_, i) => {
+            const startTs = new Date('2025-07-01T00:00:00Z').getTime();
+            const endTs = new Date().getTime(); // Từ tháng 7 đến nay
+            const randomTs = startTs + Math.random() * (endTs - startTs);
+            const randomLat = 10.7 + Math.random() * 0.1; // Random quanh khu vực TPHCM
+            const randomLng = 106.6 + Math.random() * 0.1;
+            
+            return createVoicePinRaw({
+                audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
+                content: `Chút tâm sự của Mỹ Ngân lúc rảnh rỗi số ${i + 1} ✨`,
+                audioDuration: 15 + Math.floor(Math.random() * 30),
+                audioSize: 500000 + Math.floor(Math.random() * 500000),
+                lat: randomLat,
+                lng: randomLng,
+                address: 'Thành phố Hồ Chí Minh',
+                visibility: Visibility.PUBLIC,
+                type: VoiceType.STANDARD,
+                emotionLabel: ['Vui vẻ', 'Bình yên', 'Nhớ nhung', 'Hào hứng', 'Chill'][Math.floor(Math.random() * 5)],
+                emotionScore: 0.8 + Math.random() * 0.2,
+                deviceModel: 'iPhone 14 Pro',
+                osVersion: 'iOS 17.0',
+                listensCount: Math.floor(Math.random() * 100),
+                reactionsCount: Math.floor(Math.random() * 30),
+                commentsCount: Math.floor(Math.random() * 10),
+                userId: users[0].id,
+                createdAt: new Date(randomTs)
+            });
+        }),
     ]);
     console.log(`✅ Created ${voicePins.length} voice pins`);
 
@@ -754,6 +784,27 @@ async function main() {
                 voicePinId: voicePins[14].id
             }
         }),
+        // Register images for remaining voice pins (from index 15 to end)
+        ...(() => {
+            const urls = [
+                'https://i.pinimg.com/736x/3d/23/f0/3d23f0c728bab69e512dce62979b1800.jpg',
+                'https://i.pinimg.com/736x/3c/9e/f4/3c9ef423b25ba7b0ca693a759d2df00b.jpg',
+                'https://i.pinimg.com/736x/df/22/79/df2279d38debd924c70ac8566ac18033.jpg',
+                'https://i.pinimg.com/736x/6a/e3/c6/6ae3c6195197dc286c88af60b0f7d367.jpg',
+                'https://i.pinimg.com/1200x/96/a1/fc/96a1fcba61e470cf1f49648904c4d061.jpg',
+                'https://i.pinimg.com/1200x/1c/ae/09/1cae09250c40524142bb5a5865da434e.jpg',
+                'https://i.pinimg.com/1200x/cd/ce/d4/cdced46498cdf655086c0236cb7f8318.jpg',
+                'https://i.pinimg.com/1200x/7c/17/2b/7c172b3e2406b59fd8747ae0e6343e36.jpg'
+            ];
+            return voicePins.slice(15).map((vp, index) => 
+                prisma.image.create({
+                    data: {
+                        imageUrl: urls[index % urls.length],
+                        voicePinId: vp.id
+                    }
+                })
+            );
+        })()
     ]);
     console.log(`✅ Created ${images.length} images`);
 
