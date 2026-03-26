@@ -75,13 +75,52 @@ export async function transcribeAudio(audioBuffer) {
             pushStream.close();
             const audioConfig = sdk.AudioConfig.fromStreamInput(pushStream);
             const speechRecognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
-            speechRecognizer.recognizeOnceAsync((result) => {
-                let transcription = '';
-                if (result.reason === sdk.ResultReason.RecognizedSpeech) {
-                    transcription = result.text;
+            // Dùng continuous recognition để nhận dạng toàn bộ audio, không chỉ câu đầu tiên
+            const allSegments = [];
+            speechRecognizer.recognized = (_sender, event) => {
+                if (event.result.reason === sdk.ResultReason.RecognizedSpeech) {
+                    const segment = event.result.text.trim();
+                    if (segment) {
+                        console.log(`transcribeAudio: recognized segment → "${segment}"`);
+                        allSegments.push(segment);
+                    }
                 }
-                speechRecognizer.close();
-                resolve(transcription);
+                else {
+                    console.log(`transcribeAudio: unrecognized event reason: ${sdk.ResultReason[event.result.reason]}`);
+                }
+            };
+            speechRecognizer.sessionStopped = () => {
+                console.log("transcribeAudio: session stopped. Stopping continuous recognition...");
+                speechRecognizer.stopContinuousRecognitionAsync(() => {
+                    speechRecognizer.close();
+                    const fullText = allSegments.join(' ');
+                    console.log(`transcribeAudio: full transcription → "${fullText}"`);
+                    resolve(fullText);
+                }, (err) => {
+                    speechRecognizer.close();
+                    reject(err);
+                });
+            };
+            speechRecognizer.canceled = (_sender, event) => {
+                console.log(`transcribeAudio: canceled. Reason: ${sdk.CancellationReason[event.reason]}`);
+                speechRecognizer.stopContinuousRecognitionAsync(() => {
+                    speechRecognizer.close();
+                    if (event.reason === sdk.CancellationReason.Error) {
+                        console.error(`transcribeAudio: cancellation error: ${event.errorDetails}`);
+                        // Trả về những gì đã nhận được thay vì reject
+                        resolve(allSegments.join(' '));
+                    }
+                    else {
+                        resolve(allSegments.join(' '));
+                    }
+                }, (err) => {
+                    speechRecognizer.close();
+                    reject(err);
+                });
+            };
+            console.log("transcribeAudio: starting continuous recognition...");
+            speechRecognizer.startContinuousRecognitionAsync(() => {
+                console.log("transcribeAudio: continuous recognition started.");
             }, (err) => {
                 speechRecognizer.close();
                 reject(err);
@@ -107,7 +146,9 @@ export async function moderateText(text) {
     try {
         const analyzeTextOption = { text: text };
         const analyzeTextParameters = { body: analyzeTextOption };
+        console.log(`[ContentSafety] Calling Azure Content Safety API for text: "${text.substring(0, 50)}..."`);
         const result = await client.path('/text:analyze').post(analyzeTextParameters);
+        console.log(`[ContentSafety] Azure Content Safety API response status: ${result.status}`);
         if (isUnexpected(result)) {
             throw new Error(`Unexpected result from AI Content Safety: ${result.status}`);
         }
@@ -130,12 +171,16 @@ export async function moderateText(text) {
         return false;
     }
 }
-export async function updateDatabase(postId, status) {
+export async function updateDatabase(postId, status, text) {
     console.log(`[Database] Post ${postId} status updated to: ${status}`);
     const updatedPost = await prisma.voicePin.update({
         where: { id: postId },
-        data: { status }
+        data: {
+            status,
+            transcription: text ?? null // Sử dụng null để Prisma thực sự cập nhật nếu text là chuỗi rỗng
+        }
     });
+    console.log(`[Database] Post ${postId} update successful. Transcription saved: ${!!updatedPost.transcription}`);
     if (status === 'REJECTED') {
         // Send a notification to the user
         await prisma.notification.create({
@@ -166,11 +211,13 @@ export async function processAudioBlob(blobName, postId, containerName = 'whispe
         else {
             console.log("No text transcribed from the audio.");
         }
+        console.log(`[Moderation] Determining final status for post ${postId}...`);
         const status = isRejected ? VoicePinStatus.REJECTED : VoicePinStatus.APPROVED;
-        await updateDatabase(postId, status);
+        await updateDatabase(postId, status, text);
+        console.log(`[Process] Finished processing for post ${postId}`);
     }
     catch (err) {
-        console.error("Error processing audio blob", err);
+        console.error(`[Process] Error processing audio blob for post ${postId}:`, err);
     }
 }
 //# sourceMappingURL=audioModerationService.js.map

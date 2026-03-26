@@ -1,62 +1,9 @@
 import { RequestHandler } from 'express';
 /**
  * @swagger
- * components:
- *   schemas:
- *     Report:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *           example: 1
- *         reason:
- *           type: string
- *           enum: [SPAM, HARASSMENT, HATE_SPEECH, VIOLENCE, NUDITY, MISINFORMATION, COPYRIGHT, OTHER]
- *           example: "SPAM"
- *         description:
- *           type: string
- *           nullable: true
- *           description: Additional details from reporter
- *           example: "This voice pin contains spam content"
- *         status:
- *           type: string
- *           enum: [PENDING, UNDER_REVIEW, RESOLVED, DISMISSED]
- *           example: "PENDING"
- *         createdAt:
- *           type: string
- *           format: date-time
- *           example: "2024-01-15T10:30:00.000Z"
- *         updatedAt:
- *           type: string
- *           format: date-time
- *           example: "2024-01-15T10:30:00.000Z"
- *         reporterId:
- *           type: integer
- *           example: 1
- *         voicePinId:
- *           type: integer
- *           example: 5
- *         voicePin:
- *           type: object
- *           properties:
- *             id:
- *               type: integer
- *             content:
- *               type: string
- *             user:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                 username:
- *                   type: string
- */
-/**
- * @swagger
  * /report:
  *   post:
  *     summary: Submit a report for a voice pin
- *     description: Creates a new report for a voice pin. Users cannot report their own voice pins or report the same voice pin twice.
  *     tags: [Report]
  *     security:
  *       - bearerAuth: []
@@ -66,36 +13,22 @@ import { RequestHandler } from 'express';
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - voicePinId
- *               - reason
+ *             required: [voicePinId, reason]
  *             properties:
  *               voicePinId:
  *                 type: integer
- *                 description: ID of the voice pin to report
- *                 example: 5
  *               reason:
  *                 type: string
  *                 enum: [SPAM, HARASSMENT, HATE_SPEECH, VIOLENCE, NUDITY, MISINFORMATION, COPYRIGHT, OTHER]
- *                 description: Reason for the report
- *                 example: "SPAM"
  *               description:
  *                 type: string
- *                 description: Additional details (optional)
- *                 example: "This voice pin contains promotional spam"
  *     responses:
  *       201:
  *         description: Report submitted successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Report'
  *       400:
- *         description: Bad request (already reported, own voice pin, etc.)
+ *         description: Bad request
  *       404:
  *         description: Voice pin not found
- *       401:
- *         description: Unauthorized
  */
 export declare const submitReport: RequestHandler;
 /**
@@ -103,43 +36,9 @@ export declare const submitReport: RequestHandler;
  * /report/my:
  *   get:
  *     summary: Get reports submitted by current user
- *     description: Returns all reports submitted by the authenticated user, sorted by newest first.
  *     tags: [Report]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *         description: Page number
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 20
- *         description: Number of reports per page
- *     responses:
- *       200:
- *         description: List of reports
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 reports:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Report'
- *                 total:
- *                   type: integer
- *                 page:
- *                   type: integer
- *                 totalPages:
- *                   type: integer
- *       401:
- *         description: Unauthorized
  */
 export declare const getMyReports: RequestHandler;
 /**
@@ -147,28 +46,51 @@ export declare const getMyReports: RequestHandler;
  * /report/{id}:
  *   get:
  *     summary: Get a specific report by ID
- *     description: Returns a specific report. Only the reporter can view their own report.
  *     tags: [Report]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: Report ID
- *     responses:
- *       200:
- *         description: Report details
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Report'
- *       404:
- *         description: Report not found
- *       401:
- *         description: Unauthorized
  */
 export declare const getReport: RequestHandler;
+/**
+ * @swagger
+ * /report/admin/all:
+ *   get:
+ *     summary: "[Admin] Get all reports with filters"
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ */
+export declare const adminGetAllReports: RequestHandler;
+/**
+ * @swagger
+ * /report/admin/stats:
+ *   get:
+ *     summary: "[Admin] Get report statistics"
+ *     tags: [Admin]
+ */
+export declare const adminGetReportStats: RequestHandler;
+/**
+ * @swagger
+ * /report/admin/{id}/review:
+ *   patch:
+ *     summary: "[Admin] Update report status and resolve"
+ *     tags: [Admin]
+ */
+export declare const adminReviewReport: RequestHandler;
+/**
+ * @swagger
+ * /report/admin/audit-logs:
+ *   get:
+ *     summary: "[Admin] Get audit logs"
+ *     tags: [Admin]
+ */
+export declare const adminGetAuditLogs: RequestHandler;
+/**
+ * @swagger
+ * /report/admin/unban/{userId}:
+ *   patch:
+ *     summary: "[Admin] Remove posting ban from user"
+ *     tags: [Admin]
+ */
+export declare const adminUnbanUser: RequestHandler;
 //# sourceMappingURL=reportController.d.ts.map

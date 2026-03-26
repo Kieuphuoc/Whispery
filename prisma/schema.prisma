@@ -27,6 +27,7 @@
     
     displayName     String?
     avatar          String?
+    cover           String?
     bio             String?
 
     // --- Gamification Stats ---

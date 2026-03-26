@@ -262,6 +262,7 @@ export const getMe: RequestHandler = async (req, res): Promise<void> => {
                 email: true,
                 displayName: true,
                 avatar: true,
+                cover: true,
                 bio: true,
                 // Gamification stats
                 level: true,
@@ -346,6 +347,7 @@ export const getUserById: RequestHandler = async (req, res): Promise<void> => {
                 username: true,
                 displayName: true,
                 avatar: true,
+                cover: true,
                 bio: true,
                 // Gamification (public)
                 level: true,
@@ -544,6 +546,7 @@ export const updateProfile: RequestHandler = async (req, res): Promise<void> => 
                 username: true,
                 displayName: true,
                 avatar: true,
+                cover: true,
                 bio: true,
                 level: true,
                 updatedAt: true,
@@ -645,6 +648,70 @@ export const updateAvatar: RequestHandler = async (req, res): Promise<void> => {
                 username: true,
                 displayName: true,
                 avatar: true,
+                cover: true,
+                bio: true,
+                updatedAt: true
+            }
+        });
+
+        res.status(200).json({ data: updated });
+    } catch (err) {
+        const error = err as Error;
+        res.status(400).json({ message: error.message });
+    }
+};
+
+/**
+ * @swagger
+ * /user/me/cover:
+ *   put:
+ *     summary: Update user cover image
+ *     description: Uploads a new cover (banner) image for the authenticated user. Image is stored on Azure.
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cover
+ *             properties:
+ *               cover:
+ *                 type: string
+ *                 format: binary
+ *                 description: Cover image file (JPG, PNG, etc.)
+ *     responses:
+ *       200:
+ *         description: Updated user profile with new cover
+ *       400:
+ *         description: Cover file is required
+ */
+export const updateCover: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        if (!req.file || !req.file.buffer) {
+            res.status(400).json({ message: 'Cover file is required' });
+            return;
+        }
+
+        const coverUrl = await uploadToAzure(
+            req.file.buffer,
+            req.file.originalname,
+            req.file.mimetype,
+            'covers'
+        );
+
+        const updated = await prisma.user.update({
+            where: { id: req.user!.id, deletedAt: null },
+            data: { cover: coverUrl },
+            select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatar: true,
+                cover: true,
                 bio: true,
                 updatedAt: true
             }

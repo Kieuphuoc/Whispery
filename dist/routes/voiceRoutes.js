@@ -1,10 +1,12 @@
 import express from 'express';
 import { authenticate } from '../middleware/authMiddleware.js';
 import upload from '../middleware/uploadMiddleware.js';
-import { createVoicePin, deleteVoicePin, getComment, getPublicVoicePin, getPublicVoicePinByUser, getRetrieveVoicePin, getVoicePin, updateVoicePin, getMyPublicVoicePins, getFriendsVisibleVoicePins, getRandomVoicePin, discoverVoice, getDiscoverers } from '../controllers/voiceController.js';
+import { createVoicePin, deleteVoicePin, getComment, getPublicVoicePin, getPublicVoicePinByUser, getRetrieveVoicePin, getVoicePin, updateVoicePin, getMyPublicVoicePins, getFriendsVisibleVoicePins, getRandomVoicePin, discoverVoice, getDiscoverers, getVoicePinsByBBox } from '../controllers/voiceController.js';
 const router = express.Router();
 // GET Random VoicePin (Discovery mode)
 router.get('/random', authenticate, getRandomVoicePin);
+// GET VoicePins by Bounding Box (must be before /:id)
+router.get('/bbox', getVoicePinsByBBox);
 // Get all voice pins for logged-in user
 router.get('/', authenticate, getVoicePin);
 // GET Public VoicePin

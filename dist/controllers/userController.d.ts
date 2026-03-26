@@ -52,6 +52,25 @@ import { RequestHandler } from 'express';
  *           type: string
  *           format: date-time
  *           example: "2024-01-15T10:30:00.000Z"
+ *         isPublicAccount:
+ *           type: boolean
+ *           example: true
+ *         searchable:
+ *           type: boolean
+ *           example: true
+ *         liveLocation:
+ *           type: boolean
+ *           example: false
+ *         sharingLevel:
+ *           type: string
+ *           enum: [EVERYONE, FRIENDS, NONE]
+ *           example: "FRIENDS"
+ *         showActiveStatus:
+ *           type: boolean
+ *           example: true
+ *         showTypingStatus:
+ *           type: boolean
+ *           example: true
  *     UserPublic:
  *       type: object
  *       description: Public user information visible to other users
@@ -342,7 +361,7 @@ export declare const getUserStats: RequestHandler;
  *                 example: "Voice pin enthusiast 🎤"
  *     responses:
  *       200:
- *         description: Updated user profile
+ *         description: Updated user profile with new avatar
  *         content:
  *           application/json:
  *             schema:
@@ -367,10 +386,6 @@ export declare const getUserStats: RequestHandler;
  *                     bio:
  *                       type: string
  *                       nullable: true
- *                       example: "Voice pin enthusiast 🎤"
- *                     level:
- *                       type: integer
- *                       example: 5
  *                     updatedAt:
  *                       type: string
  *                       format: date-time
@@ -443,6 +458,35 @@ export declare const updateProfile: RequestHandler;
  *               message: "Avatar file is required"
  */
 export declare const updateAvatar: RequestHandler;
+/**
+ * @swagger
+ * /user/me/cover:
+ *   put:
+ *     summary: Update user cover image
+ *     description: Uploads a new cover (banner) image for the authenticated user. Image is stored on Azure.
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cover
+ *             properties:
+ *               cover:
+ *                 type: string
+ *                 format: binary
+ *                 description: Cover image file (JPG, PNG, etc.)
+ *     responses:
+ *       200:
+ *         description: Updated user profile with new cover
+ *       400:
+ *         description: Cover file is required
+ */
+export declare const updateCover: RequestHandler;
 /**
  * @swagger
  * /user/me:

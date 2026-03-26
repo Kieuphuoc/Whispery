@@ -981,4 +981,51 @@ export declare const getDiscoverers: RequestHandler;
  *         description: Bad request
  */
 export declare const getRandomVoicePin: RequestHandler;
+/**
+ * @swagger
+ * /voice/bbox:
+ *   get:
+ *     summary: Get voice pins within a bounding box
+ *     description: Returns public voice pins within the specified geospatial bounding box. Lightweight response.
+ *     tags: [VoicePin]
+ *     parameters:
+ *       - in: query
+ *         name: minLat
+ *         required: true
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: maxLat
+ *         required: true
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: minLng
+ *         required: true
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: maxLng
+ *         required: true
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: visibility
+ *         schema:
+ *           type: string
+ *           default: PUBLIC
+ *     responses:
+ *       200:
+ *         description: List of voice pins
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/VoicePin'
+ */
+export declare const getVoicePinsByBBox: RequestHandler;
 //# sourceMappingURL=voiceController.d.ts.map

@@ -12,7 +12,7 @@ const genAI = new GoogleGenerativeAI(apiKey);
  */
 export async function analyzeAudioEmotion(audioInput: Buffer | string, mimeType: string) {
   try {
-    const responseSchema = {
+    const responseSchema: any = {
       type: SchemaType.OBJECT,
       properties: {
         transcript: {

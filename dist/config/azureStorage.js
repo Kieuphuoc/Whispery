@@ -7,7 +7,9 @@ const blobServiceClient = BlobServiceClient.fromConnectionString(connectionStrin
 const containerName = 'whisper';
 const containerClient = blobServiceClient.getContainerClient(containerName);
 // Ensure container exists
-await containerClient.createIfNotExists({ access: 'blob' });
+containerClient.createIfNotExists({ access: 'blob' }).catch(err => {
+    console.error('Failed to create Azure Blob container on startup (network issue?):', err.message);
+});
 export const uploadToAzure = async (fileBuffer, fileName, contentType, folder) => {
     const blobName = `${folder}/${Date.now()}-${fileName}`;
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
