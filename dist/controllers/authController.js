@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../prismaClient.js';
-import { uploadToAzure } from '../config/azureStorage.js';
+import { uploadToAzure } from '../configs/azureStorage.js';
 /**
  * @swagger
  * /auth/register:

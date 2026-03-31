@@ -509,6 +509,34 @@ export declare const updateCover: RequestHandler;
 export declare const deactivateAccount: RequestHandler;
 /**
  * @swagger
+ * /user/me/fcm-token:
+ *   put:
+ *     summary: Update Firebase Cloud Messaging token
+ *     description: Registers or updates the FCM token for the current user's device. Used for sending push notifications.
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - fcmToken
+ *             properties:
+ *               fcmToken:
+ *                 type: string
+ *                 example: "fcm_token_from_device"
+ *     responses:
+ *       200:
+ *         description: FCM token updated successfully
+ *       400:
+ *         description: Error updating FCM token
+ */
+export declare const updateFcmToken: RequestHandler;
+/**
+ * @swagger
  * /user/me/achievements:
  *   get:
  *     summary: Get current user's achievements

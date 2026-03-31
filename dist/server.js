@@ -3,8 +3,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
-import './config/passport.js';
-import { swaggerSpec } from './config/swagger.js';
+import { createServer } from 'http';
+import { socketService } from './services/socketService.js';
+import './configs/passport.js';
+import { swaggerSpec } from './configs/swagger.js';
 import voiceRoutes from './routes/voiceRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import authRoutes from './routes/authRoutes.js';
@@ -14,13 +16,20 @@ import reactionRoutes from './routes/reactionRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import adminStatsRoutes from './routes/adminStatsRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 5000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Middleware
 app.use(cors());
 app.use(express.json());
+// Request logger
+app.use((req, _res, next) => {
+    console.log(`[REQUEST] ${req.method} ${req.url}`);
+    next();
+});
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customCss: '.swagger-ui .topbar { display: none }',
@@ -41,13 +50,43 @@ app.use('/reaction', reactionRoutes);
 app.use('/notification', notificationRoutes);
 app.use('/report', reportRoutes);
 app.use('/admin/stats', adminStatsRoutes);
-// Health check
-app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.use('/chat', chatRoutes);
+// Global Error Handler
+app.use((err, _req, res, _next) => {
+    console.error('SERVER ERROR:', err);
+    res.status(500).json({
+        message: 'Internal Server Error',
+        error: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
 });
-app.listen(PORT, () => {
+// Initialize Socket.io
+console.log('[SERVER] Initializing Socket.io server...');
+socketService.init(httpServer);
+app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString(), socket: 'initialized' });
+});
+httpServer.listen(PORT, () => {
     console.log(`Server has started on port ${PORT}`);
     console.log(`API Documentation: http://localhost:${PORT}/api-docs`);
+    // Log all routes
+    console.log('--- Registered Routes ---');
+    const routes = [];
+    app._router.stack.forEach((middleware) => {
+        if (middleware.route) { // routes registered directly on the app
+            routes.push(`${Object.keys(middleware.route.methods)} ${middleware.route.path}`);
+        }
+        else if (middleware.name === 'router') { // router middleware
+            middleware.handle.stack.forEach((handler) => {
+                const route = handler.route;
+                if (route) {
+                    routes.push(`${Object.keys(route.methods)} ${middleware.regexp.toString().replace('/^\\/chat\\/?(?=\\/|$)/i', '/chat')}${route.path}`);
+                }
+            });
+        }
+    });
+    console.log(routes.join('\n'));
+    console.log('-------------------------');
 });
 export default app;
 //# sourceMappingURL=server.js.map

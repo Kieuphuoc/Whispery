@@ -13,8 +13,10 @@ import {
     getMyViewHistory,
     searchUsers,
     changePassword,
-    updateCover
+    updateCover,
+    updateFcmToken
 } from '../controllers/userController.js';
+
 
 const router = express.Router();
 
@@ -29,7 +31,9 @@ router.put('/me', authenticate, updateProfile);
 router.put('/me/avatar', authenticate, upload.single('avatar'), updateAvatar);
 router.put('/me/cover', authenticate, upload.single('cover'), updateCover);
 router.put('/me/password', authenticate, changePassword);
+router.put('/me/fcm-token', authenticate, updateFcmToken);
 router.delete('/me', authenticate, deactivateAccount);
+
 
 // Public routes
 router.get('/search', searchUsers);

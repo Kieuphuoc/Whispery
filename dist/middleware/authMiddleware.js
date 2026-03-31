@@ -2,7 +2,8 @@ import passport from 'passport';
 export const authenticate = (req, res, next) => {
     passport.authenticate('jwt', { session: false }, (err, user) => {
         if (err) {
-            res.status(500).json({ message: 'Authentication error' });
+            console.error('Authentication Error:', err);
+            res.status(500).json({ message: 'Authentication error', error: err.message });
             return;
         }
         if (!user) {

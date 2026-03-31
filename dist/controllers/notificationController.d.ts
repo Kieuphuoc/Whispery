@@ -226,5 +226,5 @@ export declare const deleteNotification: RequestHandler;
  *         description: Unauthorized
  */
 export declare const clearReadNotifications: RequestHandler;
-export declare const createNotification: (userId: number, type: NotificationType, data?: object) => Promise<void>;
+export declare const createNotification: (userId: number, type: NotificationType, data?: any) => Promise<void>;
 //# sourceMappingURL=notificationController.d.ts.map

@@ -204,6 +204,7 @@ async function main() {
                 password: hashedPassword,
                 displayName: 'Mỹ Ngân',
                 avatar: 'https://i.pinimg.com/736x/d5/19/0c/d5190c1430fee145a3c76f479134da8f.jpg',
+                cover: 'https://i.pinimg.com/736x/d5/19/0c/d5190c1430fee145a3c76f479134da8f.jpg',
                 bio: 'Shopaholic & Genz chính hiệu 💅✨',
                 level: 3,
                 xp: 350,
@@ -219,6 +220,7 @@ async function main() {
                 password: hashedPassword,
                 displayName: 'Bún Đậu',
                 avatar: 'https://i.pinimg.com/736x/b7/86/7f/b7867fb2b579cbfceec90e671f566a36.jpg',
+                cover: 'https://i.pinimg.com/736x/b7/86/7f/b7867fb2b579cbfceec90e671f566a36.jpg',
                 bio: 'Nghiện bún đậu mắm tôm, không có mắm tôm đời không nể 🍜',
                 level: 5,
                 xp: 1200,
@@ -234,6 +236,7 @@ async function main() {
                 googleId: 'google-oauth-id-alex-123',
                 displayName: 'Đậu đại học thì đổi tên',
                 avatar: 'https://i.pinimg.com/736x/d4/e3/b0/d4e3b0f80d2ef6656fbdc671af9c0975.jpg',
+                cover: 'https://i.pinimg.com/736x/d4/e3/b0/d4e3b0f80d2ef6656fbdc671af9c0975.jpg',
                 bio: 'Khi nào đậu đại học tôi mới đổi tên này, thề! ✍️🎓',
                 level: 2,
                 xp: 150,
@@ -248,6 +251,7 @@ async function main() {
                 password: hashedPassword,
                 displayName: 'Cháy phố',
                 avatar: 'https://i.pinimg.com/736x/41/9b/2b/419b2bd96c0aca8761ec0d15c47b6235.jpg',
+                cover: 'https://i.pinimg.com/736x/41/9b/2b/419b2bd96c0aca8761ec0d15c47b6235.jpg',
                 bio: 'Hệ hướng ngoại, chuyên săn deal và cháy phố mỗi tối 🏎️💨',
                 level: 4,
                 xp: 700,
@@ -262,6 +266,7 @@ async function main() {
                 password: hashedPassword,
                 displayName: 'Simp lỏ',
                 avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=mike',
+                cover: 'https://api.dicebear.com/7.x/avataaars/svg?seed=mike',
                 bio: 'Simp lỏ chúa, chỉ ở đây để tìm người thương... 💖🥺',
                 level: 1,
                 xp: 25,
@@ -358,10 +363,10 @@ async function main() {
             listensCount: 35,
             reactionsCount: 18,
             commentsCount: 3,
-            userId: users[0].id,
+            userId: users[1].id,
             createdAt: new Date('2026-03-10T14:30:00Z')
         }),
-        // John's additional voice pins
+        // Reassigned voice pins
         createVoicePinRaw({
             audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
             content: 'Buổi chiều mưa ở Sài Gòn, nhớ quá... 🌧️',
@@ -379,7 +384,7 @@ async function main() {
             listensCount: 78,
             reactionsCount: 35,
             commentsCount: 11,
-            userId: users[0].id,
+            userId: users[2].id,
             createdAt: new Date('2026-03-05T09:15:00Z')
         }),
         createVoicePinRaw({
@@ -399,7 +404,7 @@ async function main() {
             listensCount: 95,
             reactionsCount: 48,
             commentsCount: 7,
-            userId: users[0].id,
+            userId: users[3].id,
             createdAt: new Date('2026-02-28T08:00:00Z')
         }),
         createVoicePinRaw({
@@ -419,7 +424,7 @@ async function main() {
             listensCount: 145,
             reactionsCount: 67,
             commentsCount: 19,
-            userId: users[0].id,
+            userId: users[4].id,
             createdAt: new Date('2026-02-20T21:45:00Z')
         }),
         createVoicePinRaw({
@@ -459,7 +464,7 @@ async function main() {
             listensCount: 62,
             reactionsCount: 29,
             commentsCount: 8,
-            userId: users[0].id,
+            userId: users[1].id,
             createdAt: new Date('2026-03-01T15:10:00Z')
         }),
         createVoicePinRaw({
@@ -479,7 +484,7 @@ async function main() {
             listensCount: 189,
             reactionsCount: 92,
             commentsCount: 24,
-            userId: users[0].id,
+            userId: users[2].id,
             createdAt: new Date('2026-02-15T22:30:00Z')
         }),
         createVoicePinRaw({
@@ -499,7 +504,7 @@ async function main() {
             listensCount: 112,
             reactionsCount: 56,
             commentsCount: 14,
-            userId: users[0].id,
+            userId: users[3].id,
             createdAt: new Date('2026-03-18T06:00:00Z')
         }),
         createVoicePinRaw({
@@ -519,7 +524,7 @@ async function main() {
             listensCount: 83,
             reactionsCount: 41,
             commentsCount: 16,
-            userId: users[0].id,
+            userId: users[4].id,
             createdAt: new Date('2026-03-08T11:20:00Z')
         }),
         // Jane's voice pins
@@ -647,20 +652,21 @@ async function main() {
             listensCount: 0,
             reactionsCount: 0,
             commentsCount: 0,
-            userId: users[0].id,
+            userId: users[4].id,
             createdAt: new Date('2026-03-19T08:00:00Z')
         }),
-        // Thêm 20 voice pins rải rác từ tháng 7-2025 đến nay cho my_ngan_2k
+        // Thêm 20 voice pins rải rác từ tháng 7-2025 đến nay cho tất cả user
         ...Array.from({ length: 20 }).map((_, i) => {
             const startTs = new Date('2025-07-01T00:00:00Z').getTime();
             const endTs = new Date().getTime(); // Từ tháng 7 đến nay
             const randomTs = startTs + Math.random() * (endTs - startTs);
             const randomLat = 10.7 + Math.random() * 0.1; // Random quanh khu vực TPHCM
             const randomLng = 106.6 + Math.random() * 0.1;
-            
+            const currentUser = users[i % users.length];
+
             return createVoicePinRaw({
                 audioUrl: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3',
-                content: `Chút tâm sự của Mỹ Ngân lúc rảnh rỗi số ${i + 1} ✨`,
+                content: `Chút tâm sự của ${currentUser.displayName} lúc rảnh rỗi số ${Math.floor(i / users.length) + 1} ✨`,
                 audioDuration: 15 + Math.floor(Math.random() * 30),
                 audioSize: 500000 + Math.floor(Math.random() * 500000),
                 lat: randomLat,
@@ -675,7 +681,7 @@ async function main() {
                 listensCount: Math.floor(Math.random() * 100),
                 reactionsCount: Math.floor(Math.random() * 30),
                 commentsCount: Math.floor(Math.random() * 10),
-                userId: users[0].id,
+                userId: currentUser.id,
                 createdAt: new Date(randomTs)
             });
         }),

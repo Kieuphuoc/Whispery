@@ -1,6 +1,6 @@
 import { Request, Response, RequestHandler } from 'express';
 import prisma from '../prismaClient.js';
-import { uploadToAzure } from '../config/azureStorage.js';
+import { uploadToAzure } from '../configs/azureStorage.js';
 import { UserStatus } from '@prisma/client';
 
 /**
@@ -517,13 +517,13 @@ export const getUserStats: RequestHandler = async (req, res): Promise<void> => {
  */
 export const updateProfile: RequestHandler = async (req, res): Promise<void> => {
     try {
-        const { 
-            displayName, 
-            bio, 
-            isPublicAccount, 
-            searchable, 
-            liveLocation, 
-            sharingLevel, 
+        const {
+            displayName,
+            bio,
+            isPublicAccount,
+            searchable,
+            liveLocation,
+            sharingLevel,
             showActiveStatus,
             showTypingStatus
         } = req.body;
@@ -754,6 +754,54 @@ export const deactivateAccount: RequestHandler = async (req, res): Promise<void>
         });
 
         res.status(204).send();
+    } catch (err) {
+        const error = err as Error;
+        res.status(400).json({ message: error.message });
+    }
+};
+
+/**
+ * @swagger
+ * /user/me/fcm-token:
+ *   put:
+ *     summary: Update Firebase Cloud Messaging token
+ *     description: Registers or updates the FCM token for the current user's device. Used for sending push notifications.
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - fcmToken
+ *             properties:
+ *               fcmToken:
+ *                 type: string
+ *                 example: "fcm_token_from_device"
+ *     responses:
+ *       200:
+ *         description: FCM token updated successfully
+ *       400:
+ *         description: Error updating FCM token
+ */
+export const updateFcmToken: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const { fcmToken } = req.body;
+
+        if (!fcmToken) {
+            res.status(400).json({ message: 'fcmToken is required' });
+            return;
+        }
+
+        await prisma.user.update({
+            where: { id: req.user!.id },
+            data: { fcmToken }
+        });
+
+        res.status(200).json({ message: 'FCM token updated successfully' });
     } catch (err) {
         const error = err as Error;
         res.status(400).json({ message: error.message });

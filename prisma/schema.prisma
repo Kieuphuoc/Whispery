@@ -54,6 +54,9 @@
     sharingLevel      SharingLevel @default(FRIENDS)
     showActiveStatus  Boolean    @default(true)
     showTypingStatus  Boolean    @default(true)
+    fcmToken          String?    // Firebase Cloud Messaging token for push notifications
+
+
 
     // Relationships
     voicePins        VoicePin[]
@@ -71,6 +74,11 @@
     // Social
     friendshipsSent     Friendship[] @relation("friendshipsSent")
     friendshipsReceived Friendship[] @relation("friendshipsReceived")
+    
+    // Messaging
+    chatMembers         ChatMember[]
+    messagesSent        Message[]
+
 
     @@index([status])
     @@index([deletedAt])
@@ -379,6 +387,8 @@
     SYSTEM_MESSAGE
     VOICE_REPORTED
     POSTING_BANNED
+    FRIEND_VOICEPIN
+    NEW_MESSAGE
   }
 
   // ==========================================
@@ -474,3 +484,77 @@
     @@unique([userId, voicePinId]) 
     @@index([userId, viewedAt])
   }
+
+  // ==========================================
+  // 11. MESSAGING SYSTEM
+  // ==========================================
+
+  model ChatRoom {
+    id          Int          @id @default(autoincrement())
+    name        String?      // Name for group chats
+    isGroup     Boolean      @default(false)
+    lastMessageId Int?       @unique // For quick display of last message
+    createdAt   DateTime     @default(now())
+    updatedAt   DateTime     @updatedAt
+
+    members     ChatMember[]
+    messages    Message[]
+    
+    // Relation to last message if needed for performance
+    lastMessage Message?      @relation("LastMessage", fields: [lastMessageId], references: [id])
+  }
+
+  model ChatMember {
+    id          Int       @id @default(autoincrement())
+    joinedAt    DateTime  @default(now())
+    isAdmin     Boolean   @default(false)
+    
+    userId      Int
+    user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    
+    roomId      Int
+    room        ChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, roomId])
+    @@index([userId])
+    @@index([roomId])
+  }
+
+  model Message {
+    id          Int       @id @default(autoincrement())
+    content     String?   // For TEXT type
+    type        MessageType @default(TEXT)
+    fileUrl     String?   // For VOICE, IMAGE, VIDEO types
+    fileSize    Int?      
+    duration    Int?      // For VOICE messages
+    readAt      DateTime? // When the message was read by recipient (for 1:1)
+    
+    createdAt   DateTime  @default(now())
+
+    senderId    Int
+    sender      User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+    
+    roomId      Int
+    room        ChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+    // Optional self-reference for replying to a message
+    replyToId   Int?
+    replyTo     Message?  @relation("MessageReplies", fields: [replyToId], references: [id])
+    replies     Message[] @relation("MessageReplies")
+    
+    // For ChatRoom.lastMessage reference
+    lastInRoom  ChatRoom? @relation("LastMessage")
+
+    @@index([roomId, createdAt])
+    @@index([senderId])
+  }
+
+  enum MessageType {
+    TEXT
+    VOICE
+    IMAGE
+    VIDEO
+    LOCATION
+    SYSTEM
+  }
+

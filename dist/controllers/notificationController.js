@@ -1,4 +1,5 @@
 import prisma from '../prismaClient.js';
+import { pushNotificationService } from '../services/pushNotificationService.js';
 /**
  * @swagger
  * components:
@@ -342,12 +343,41 @@ export const clearReadNotifications = async (req, res) => {
 };
 // Helper function to create notifications (for use by other controllers)
 export const createNotification = async (userId, type, data) => {
-    await prisma.notification.create({
+    // 1. Save to DB
+    const notification = await prisma.notification.create({
         data: {
             userId,
             type,
             ...(data && { data })
         }
     });
+    // 2. Map type to user-friendly titles/messages for Push
+    const pushContent = getPushContent(type, data);
+    // 3. Send Push (Async - Fire & Forget)
+    if (pushContent) {
+        pushNotificationService.sendPushNotification(userId, pushContent.title, pushContent.body, { ...data, notificationId: notification.id }).catch(err => console.error('Push error:', err));
+    }
+};
+const getPushContent = (type, data) => {
+    switch (type) {
+        case 'FRIEND_REQUEST':
+            return { title: 'Lời mời kết bạn mới', body: `${data?.senderName || 'Ai đó'} đã gửi lời mời kết bạn cho bạn.` };
+        case 'FRIEND_ACCEPTED':
+            return { title: 'Kết nối thành công', body: `${data?.accepterName || 'Ai đó'} đã chấp nhận lời mời kết bạn.` };
+        case 'NEW_REACTION':
+            return { title: 'Xung động mới', body: `${data?.reactorName || 'Ai đó'} đã thả tim vào giọng nói của bạn.` };
+        case 'NEW_COMMENT':
+            return { title: 'Bình luận mới', body: `${data?.commenterName || 'Ai đó'} vừa phản hồi giọng nói của bạn.` };
+        case 'COMMENT_REPLY':
+            return { title: 'Phản hồi bình luận', body: `${data?.replierName || 'Ai đó'} đã trả lời bình luận của bạn.` };
+        case 'FRIEND_VOICEPIN':
+            return { title: 'Tín hiệu từ bạn bè', body: `${data?.posterName || 'Bạn bè'} vừa đăng một VoicePin mới lân cận.` };
+        case 'NEW_MESSAGE':
+            return { title: 'Tin nhắn mới', body: `${data?.senderName || 'Ai đó'}: ${data?.content || 'vừa gửi một tin nhắn.'}` };
+        case 'SYSTEM_MESSAGE':
+            return { title: 'Thông báo hệ thống', body: data?.message || 'Bạn có một thông báo từ hệ thống.' };
+        default:
+            return null;
+    }
 };
 //# sourceMappingURL=notificationController.js.map

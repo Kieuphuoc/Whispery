@@ -1,5 +1,5 @@
 import prisma from '../prismaClient.js';
-import { uploadToAzure } from '../config/azureStorage.js';
+import { uploadToAzure } from '../configs/azureStorage.js';
 /**
  * @swagger
  * components:
