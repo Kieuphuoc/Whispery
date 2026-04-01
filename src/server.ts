@@ -108,15 +108,17 @@ httpServer.listen(PORT, () => {
             if (middleware.route) { // routes registered directly on the app
                 const methods = Object.keys(middleware.route.methods).join(',').toUpperCase();
                 routes.push(`${methods} ${middleware.route.path}`);
-            } else if (middleware.name === 'router') { // router middleware
+            } else if (middleware.name === 'router' && middleware.handle && middleware.handle.stack) { // router middleware
                 middleware.handle.stack.forEach((handler: any) => {
                     const route = handler.route;
                     if (route) {
                         const methods = Object.keys(route.methods).join(',').toUpperCase();
-                        const path = middleware.regexp.source
+                        const regexpSource = middleware.regexp ? middleware.regexp.source : '';
+                        const path = regexpSource
                             .replace('^', '')
                             .replace('\\/?(?=\\/|$)', '')
                             .replace('\\/', '/')
+                            .replace('g', '')
                             .replace('i', '');
                         routes.push(`${methods} ${path}${route.path}`);
                     }
