@@ -16,6 +16,7 @@ declare global {
             xp: number;
             scanRadius: number;
             status: string;
+            role: string;
             deletedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
