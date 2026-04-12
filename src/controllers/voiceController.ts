@@ -402,6 +402,10 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
             ? (type as VoiceType)
             : VoiceType.STANDARD;
 
+        // #region agent log
+        fetch('http://127.0.0.1:7850/ingest/3179c842-5b20-4c57-a9d9-f80896c878c7', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '942cfe' }, body: JSON.stringify({ sessionId: '942cfe', location: 'voiceController.ts:createVoicePin', message: 'before VoicePin INSERT', data: { validVisibility, validType, runId: 'post-fix' }, timestamp: Date.now(), hypothesisId: 'A' }) }).catch(() => {});
+        // #endregion
+
         const voicePins: any[] = await prisma.$queryRaw`
             INSERT INTO "VoicePin" (
                 "audioUrl", 
@@ -426,13 +430,13 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
                 ${audioUrl}, 
                 ${description || null}, 
                 ST_SetSRID(ST_MakePoint(${parseFloat(longitude)}, ${parseFloat(latitude)}), 4326), 
-                ${Prisma.raw(`'${validVisibility}'::\"Visibility\"`)}, 
+                CAST(${validVisibility} AS "Visibility"), 
                 ${userId}, 
                 ${audioDuration ? parseInt(audioDuration) : null}, 
                 ${audioSize ? parseInt(audioSize) : null}, 
                 ${address || null}, 
                 ${(isAnonymous === 'true' || isAnonymous === true)}, 
-                ${Prisma.raw(`'${validType}'::\"VoiceType\"`)}, 
+                CAST(${validType} AS "VoiceType"), 
                 ${unlockRadius ? parseInt(unlockRadius) : 0}, 
                 ${finalEmotionLabel}, 
                 ${finalEmotionScore}, 
