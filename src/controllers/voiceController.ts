@@ -395,6 +395,13 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
         const allImageUrls = [...existingImages, ...uploadedImageUrls];
 
         console.log("createVoicePin: Creating prisma record using raw SQL for PostGIS...");
+        const validVisibility = (visibility && Object.values(Visibility).includes(visibility as Visibility))
+            ? (visibility as Visibility)
+            : Visibility.PUBLIC;
+        const validType = (type && Object.values(VoiceType).includes(type as VoiceType))
+            ? (type as VoiceType)
+            : VoiceType.STANDARD;
+
         const voicePins: any[] = await prisma.$queryRaw`
             INSERT INTO "VoicePin" (
                 "audioUrl", 
@@ -419,13 +426,13 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
                 ${audioUrl}, 
                 ${description || null}, 
                 ST_SetSRID(ST_MakePoint(${parseFloat(longitude)}, ${parseFloat(latitude)}), 4326), 
-                (${(visibility || Visibility.PUBLIC) as any}::text)::"Visibility", 
+                ${Prisma.raw(`'${validVisibility}'::\"Visibility\"`)}, 
                 ${userId}, 
                 ${audioDuration ? parseInt(audioDuration) : null}, 
                 ${audioSize ? parseInt(audioSize) : null}, 
                 ${address || null}, 
                 ${(isAnonymous === 'true' || isAnonymous === true)}, 
-                (${(type || VoiceType.STANDARD) as any}::text)::"VoiceType", 
+                ${Prisma.raw(`'${validType}'::\"VoiceType\"`)}, 
                 ${unlockRadius ? parseInt(unlockRadius) : 0}, 
                 ${finalEmotionLabel}, 
                 ${finalEmotionScore}, 
