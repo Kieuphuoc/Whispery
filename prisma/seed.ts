@@ -1,4 +1,4 @@
-import { PrismaClient, UserStatus, VoiceType, Visibility, ReactionType, FriendRequestStatus, NotificationType, ReportReason, ReportStatus } from '@prisma/client';
+import { PrismaClient, UserStatus, UserRole, VoiceType, Visibility, ReactionType, FriendRequestStatus, NotificationType, ReportReason, ReportStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -271,6 +271,17 @@ async function main() {
                 level: 1,
                 xp: 25,
                 scanRadius: 1000,
+                status: UserStatus.ACTIVE
+            }
+        }),
+        prisma.user.create({
+            data: {
+                username: 'admin',
+                email: 'admin@whisper.app',
+                password: hashedPassword,
+                displayName: 'Whisper Admin',
+                avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
+                role: UserRole.ADMIN,
                 status: UserStatus.ACTIVE
             }
         }),

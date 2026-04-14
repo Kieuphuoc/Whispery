@@ -406,48 +406,26 @@ export const createVoicePin: RequestHandler = async (req, res): Promise<void> =>
         fetch('http://127.0.0.1:7850/ingest/3179c842-5b20-4c57-a9d9-f80896c878c7', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '942cfe' }, body: JSON.stringify({ sessionId: '942cfe', location: 'voiceController.ts:createVoicePin', message: 'before VoicePin INSERT', data: { validVisibility, validType, runId: 'post-fix' }, timestamp: Date.now(), hypothesisId: 'A' }) }).catch(() => {});
         // #endregion
 
-        const voicePins: any[] = await prisma.$queryRaw`
-            INSERT INTO "VoicePin" (
-                "audioUrl", 
-                "content", 
-                "location", 
-                "visibility", 
-                "userId", 
-                "audioDuration", 
-                "audioSize", 
-                "address", 
-                "isAnonymous", 
-                "type", 
-                "unlockRadius", 
-                "emotionLabel", 
-                "emotionScore", 
-                "stickerUrl", 
-                "deviceModel", 
-                "osVersion",
-                "updatedAt",
-                "transcription"
-            ) VALUES (
-                ${audioUrl}, 
-                ${description || null}, 
-                ST_SetSRID(ST_MakePoint(${parseFloat(longitude)}, ${parseFloat(latitude)}), 4326), 
-                CAST(${validVisibility} AS "Visibility"), 
-                ${userId}, 
-                ${audioDuration ? parseInt(audioDuration) : null}, 
-                ${audioSize ? parseInt(audioSize) : null}, 
-                ${address || null}, 
-                ${(isAnonymous === 'true' || isAnonymous === true)}, 
-                CAST(${validType} AS "VoiceType"), 
-                ${unlockRadius ? parseInt(unlockRadius) : 0}, 
-                ${finalEmotionLabel}, 
-                ${finalEmotionScore}, 
-                ${stickerUrl || null}, 
-                ${deviceModel || null}, 
-                ${osVersion || null},
-                NOW(),
-                ${finalTranscription}
-            ) RETURNING *
-        `;
-        const voicePin = voicePins[0];
+        const voicePin = await (prisma.voicePin as any).createWithLocation({
+            audioUrl,
+            content: description || null,
+            latitude: parseFloat(latitude),
+            longitude: parseFloat(longitude),
+            visibility: validVisibility,
+            userId,
+            audioDuration: audioDuration ? parseInt(audioDuration) : null,
+            audioSize: audioSize ? parseInt(audioSize) : null,
+            address: address || null,
+            isAnonymous: (isAnonymous === 'true' || isAnonymous === true),
+            type: validType,
+            unlockRadius: unlockRadius ? parseInt(unlockRadius) : 0,
+            emotionLabel: finalEmotionLabel,
+            emotionScore: finalEmotionScore,
+            stickerUrl: stickerUrl || null,
+            deviceModel: deviceModel || null,
+            osVersion: osVersion || null,
+            transcription: finalTranscription
+        });
 
         // Create images if any
         if (allImageUrls.length > 0) {
@@ -695,23 +673,14 @@ export const updateVoicePin: RequestHandler = async (req, res): Promise<void> =>
             };
         }
 
-        console.log("updateVoicePin: Updating prisma record within transaction...");
-        const voicePin = await prisma.$transaction(async (tx) => {
-            const pin = await tx.voicePin.update({
-                where: { id: parseInt(id), userId, deletedAt: null },
-                data: updateData,
-                include: { images: true }
-            });
-
-            if (latitude !== undefined && longitude !== undefined) {
-                console.log("updateVoicePin: Updating location geometry...");
-                await tx.$executeRaw`
-                    UPDATE "VoicePin" 
-                    SET "location" = ST_SetSRID(ST_MakePoint(${parseFloat(longitude)}, ${parseFloat(latitude)}), 4326)
-                    WHERE id = ${parseInt(id)}
-                `;
+        console.log("updateVoicePin: Updating prisma record...");
+        const voicePin = await (prisma.voicePin as any).updateWithLocation({
+            where: { id: parseInt(id), userId, deletedAt: null },
+            data: {
+                ...updateData,
+                latitude: latitude !== undefined ? parseFloat(latitude) : undefined,
+                longitude: longitude !== undefined ? parseFloat(longitude) : undefined
             }
-            return pin;
         });
 
         console.log("updateVoicePin: Success", voicePin.id);
@@ -781,36 +750,28 @@ export const updateVoicePin: RequestHandler = async (req, res): Promise<void> =>
  */
 export const getPublicVoicePin: RequestHandler = async (_req, res): Promise<void> => {
     try {
-        const voicePins: any[] = await prisma.$queryRaw`
-            SELECT 
-                v."id", v."audioUrl", v."content", v."audioDuration", v."audioSize", v."address",
-                v."visibility", v."isAnonymous", v."type", v."unlockRadius", 
-                v."emotionLabel", v."emotionScore", v."stickerUrl", v."transcription",
-                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
-                v."status", v."deletedAt", v."createdAt", v."updatedAt",
-                ST_Y(v.location) as latitude, 
-                ST_X(v.location) as longitude,
-                u."id" as "u_userId",
-                u."username",
-                u."displayName",
-                u."avatar"
-            FROM "VoicePin" v
-            LEFT JOIN "User" u ON v."userId" = u."id"
-            WHERE v."visibility" = 'PUBLIC' AND v."deletedAt" IS NULL
-            ORDER BY v."createdAt" DESC
-        `;
+        const voicePins = await prisma.voicePin.findMany({
+            where: {
+                visibility: 'PUBLIC',
+                deletedAt: null
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        username: true,
+                        displayName: true,
+                        avatar: true
+                    }
+                },
+                images: true
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
 
-        // Map results to include nested user object and Fetch images
-        const results = await Promise.all(voicePins.map(async (v) => {
-            const images = await prisma.image.findMany({ where: { voicePinId: v.id } });
-            return {
-                ...v,
-                user: { id: v.u_userId, username: v.username, displayName: v.displayName, avatar: v.avatar },
-                images
-            };
-        }));
-
-        res.status(200).json({ data: results });
+        res.status(200).json({ data: voicePins });
     } catch (err) {
         const error = err as Error;
         res.status(400).json({ message: error.message });
@@ -871,35 +832,29 @@ export const getPublicVoicePin: RequestHandler = async (_req, res): Promise<void
 export const getPublicVoicePinByUser: RequestHandler = async (req, res): Promise<void> => {
     try {
         const id = req.params.id as string;
-        const voicePins: any[] = await prisma.$queryRaw`
-            SELECT 
-                v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
-                v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
-                v."emotionLabel", v."emotionScore", v."stickerUrl", v.transcription,
-                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
-                v.status, v."deletedAt", v."createdAt", v."updatedAt", v."userId",
-                ST_Y(v.location) as latitude, 
-                ST_X(v.location) as longitude,
-                u.id as "userId",
-                u.username,
-                u."displayName",
-                u.avatar
-            FROM "VoicePin" v
-            LEFT JOIN "User" u ON v."userId" = u.id
-            WHERE v.visibility = 'PUBLIC' AND v."userId" = ${parseInt(id)} AND v."deletedAt" IS NULL
-            ORDER BY v."createdAt" DESC
-        `;
+        const voicePins = await prisma.voicePin.findMany({
+            where: {
+                visibility: 'PUBLIC',
+                userId: parseInt(id),
+                deletedAt: null
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        username: true,
+                        displayName: true,
+                        avatar: true
+                    }
+                },
+                images: true
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
 
-        const results = await Promise.all(voicePins.map(async (v) => {
-            const images = await prisma.image.findMany({ where: { voicePinId: v.id } });
-            return {
-                ...v,
-                user: { id: v.userId, username: v.username, displayName: v.displayName, avatar: v.avatar },
-                images
-            };
-        }));
-
-        res.status(200).json({ data: results });
+        res.status(200).json({ data: voicePins });
     } catch (err) {
         const error = err as Error;
         res.status(400).json({ message: error.message });
@@ -954,35 +909,29 @@ export const getPublicVoicePinByUser: RequestHandler = async (req, res): Promise
 export const getMyPublicVoicePins: RequestHandler = async (req, res): Promise<void> => {
     try {
         const userId = req.user!.id;
-        const voicePins: any[] = await prisma.$queryRaw`
-            SELECT 
-                v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
-                v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
-                v."emotionLabel", v."emotionScore", v."stickerUrl", v.transcription,
-                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
-                v.status, v."deletedAt", v."createdAt", v."updatedAt", v."userId",
-                ST_Y(v.location) as latitude, 
-                ST_X(v.location) as longitude,
-                u.id as "userId",
-                u.username,
-                u."displayName",
-                u.avatar
-            FROM "VoicePin" v
-            LEFT JOIN "User" u ON v."userId" = u.id
-            WHERE v.visibility = 'PUBLIC' AND v."userId" = ${userId} AND v."deletedAt" IS NULL
-            ORDER BY v."createdAt" DESC
-        `;
+        const voicePins = await prisma.voicePin.findMany({
+            where: {
+                visibility: 'PUBLIC',
+                userId,
+                deletedAt: null
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        username: true,
+                        displayName: true,
+                        avatar: true
+                    }
+                },
+                images: true
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
 
-        const results = await Promise.all(voicePins.map(async (v) => {
-            const images = await prisma.image.findMany({ where: { voicePinId: v.id } });
-            return {
-                ...v,
-                user: { id: v.userId, username: v.username, displayName: v.displayName, avatar: v.avatar },
-                images
-            };
-        }));
-
-        res.status(200).json({ data: results });
+        res.status(200).json({ data: voicePins });
     } catch (err) {
         const error = err as Error;
         res.status(400).json({ message: error.message });
@@ -1052,35 +1001,29 @@ export const getFriendsVisibleVoicePins: RequestHandler = async (req, res): Prom
             return;
         }
 
-        const voicePins: any[] = await prisma.$queryRaw`
-            SELECT 
-                v.id, v."audioUrl", v.content, v."audioDuration", v."audioSize", v.address,
-                v.visibility, v."isAnonymous", v.type, v."unlockRadius", 
-                v."emotionLabel", v."emotionScore", v."stickerUrl", v.transcription,
-                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
-                v.status, v."deletedAt", v."createdAt", v."updatedAt", v."userId",
-                ST_Y(v.location) as latitude, 
-                ST_X(v.location) as longitude,
-                u.id as "userId",
-                u.username,
-                u."displayName",
-                u.avatar
-            FROM "VoicePin" v
-            LEFT JOIN "User" u ON v."userId" = u.id
-            WHERE v.visibility IN ('PUBLIC', 'FRIENDS') AND v."userId" IN (${Prisma.join(friendIds)}) AND v."deletedAt" IS NULL
-            ORDER BY v."createdAt" DESC
-        `;
+        const voicePins = await prisma.voicePin.findMany({
+            where: {
+                visibility: { in: ['PUBLIC', 'FRIENDS'] },
+                userId: { in: friendIds },
+                deletedAt: null
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        username: true,
+                        displayName: true,
+                        avatar: true
+                    }
+                },
+                images: true
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
 
-        const results = await Promise.all(voicePins.map(async (v) => {
-            const images = await prisma.image.findMany({ where: { voicePinId: v.id } });
-            return {
-                ...v,
-                user: { id: v.userId, username: v.username, displayName: v.displayName, avatar: v.avatar },
-                images
-            };
-        }));
-
-        res.status(200).json({ data: results });
+        res.status(200).json({ data: voicePins });
     } catch (err) {
         const error = err as Error;
         res.status(400).json({ message: error.message });
@@ -1167,45 +1110,24 @@ export const getRetrieveVoicePin: RequestHandler = async (req, res): Promise<voi
             data: { listensCount: { increment: 1 } }
         });
 
-        // Retrieve with lat/lng extraction
-        const voicePins: any[] = await prisma.$queryRaw`
-            SELECT 
-                v."id", v."audioUrl", v."content", v."audioDuration", v."audioSize", v."address",
-                v."visibility", v."isAnonymous", v."type", v."unlockRadius", 
-                v."emotionLabel", v."emotionScore", v."stickerUrl", v."transcription",
-                v."deviceModel", v."osVersion", v."listensCount", v."reactionsCount", v."commentsCount",
-                v."status", v."deletedAt", v."createdAt", v."updatedAt",
-                ST_Y(v.location) as latitude, 
-                ST_X(v.location) as longitude,
-                u."id" as "u_userId",
-                u."username",
-                u."displayName",
-                u."avatar"
-            FROM "VoicePin" v
-            LEFT JOIN "User" u ON v."userId" = u."id"
-            WHERE v."id" = ${parseInt(id)} AND v."deletedAt" IS NULL
-        `;
-
-        if (voicePins.length === 0) {
+        // Retrieve with lat/lng extraction (handled by extension)
+        const voicePin = await prisma.voicePin.findFirst({
+            where: { id: parseInt(id), deletedAt: null },
+            include: {
+                user: { select: { id: true, username: true, displayName: true, avatar: true } },
+                images: true,
+                reactions: {
+                    select: { id: true, type: true, userId: true }
+                }
+            }
+        });
+        
+        if (!voicePin) {
             res.status(404).json({ message: 'Voice Pin not found' });
             return;
         }
 
-        const v = voicePins[0];
-        const images = await prisma.image.findMany({ where: { voicePinId: v.id } });
-        const reactions = await prisma.reaction.findMany({
-            where: { voicePinId: v.id },
-            select: { id: true, type: true, userId: true }
-        });
-
-        const result = {
-            ...v,
-            user: { id: v.u_userId, username: v.username, displayName: v.displayName, avatar: v.avatar },
-            images,
-            reactions
-        };
-
-        res.status(200).json({ data: result });
+        res.status(200).json({ data: voicePin });
     } catch (err) {
         const error = err as Error;
         res.status(400).json({ message: error.message });
@@ -1723,32 +1645,15 @@ export const getRandomVoicePin: RequestHandler = async (req, res): Promise<void>
 
         console.log('Searching for voices at:', { lat, lng, radiusKm, userId });
 
-        // Use ST_DWithin for spatial search on PostGIS geometry
-        let voicePins: any[] = await prisma.$queryRaw`
-            SELECT id, ST_Y(location) as latitude, ST_X(location) as longitude, content, "audioUrl", "visibility", "userId", "createdAt", type
-            FROM "VoicePin"
-            WHERE visibility = 'PUBLIC'
-            AND "deletedAt" IS NULL
-            AND ${userId ? userId : -1} != "userId"
-            AND ST_DWithin(location, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography, ${radiusKm * 1000})
-            LIMIT 100
-        `;
+        // Use the extension method for spatial search on PostGIS geometry
+        const voicePins = await (prisma.voicePin as any).findRandomNearby({
+            lat,
+            lng,
+            radiusKm,
+            userId
+        });
 
-        // Fallback: If no nearby voices found, find ANY public voice from other users
-        if (voicePins.length === 0) {
-            console.log('No nearby voices, falling back to any public voices');
-            voicePins = await prisma.$queryRaw`
-                SELECT id, ST_Y(location) as latitude, ST_X(location) as longitude, content, "audioUrl", "visibility", "userId", "createdAt", type
-                FROM "VoicePin"
-                WHERE visibility = 'PUBLIC'
-                AND "deletedAt" IS NULL
-                AND ${userId ? userId : -1} != "userId"
-                LIMIT 50
-            `;
-        }
-
-
-        if (voicePins.length === 0) {
+        if (!voicePins || voicePins.length === 0) {
             res.status(404).json({ message: 'Chưa có giọng nói công khai nào để khám phá. Hãy là người đầu tiên!' });
             return;
         }
@@ -1826,37 +1731,16 @@ export const getVoicePinsByBBox: RequestHandler = async (req, res): Promise<void
             return;
         }
 
-        const pins: any[] = await prisma.$queryRaw`
-            SELECT 
-                v.id, 
-                ST_Y(v.location) as latitude, 
-                ST_X(v.location) as longitude, 
-                v.type, 
-                v.content, 
-                v."audioUrl",
-                v."createdAt",
-                v."userId",
-                v."visibility",
-                v."emotionLabel",
-                v."reactionsCount",
-                v."commentsCount",
-                v."listensCount",
-                v."isAnonymous",
-                v."address",
-                u.username,
-                u."displayName",
-                u.avatar
-            FROM "VoicePin" v
-            LEFT JOIN "User" u ON v."userId" = u.id
-            WHERE v.location && ST_MakeEnvelope(${minLng}, ${minLat}, ${maxLng}, ${maxLat}, 4326)
-            AND v.visibility::text = ${visibility}
-            AND v."deletedAt" IS NULL
-            ORDER BY v."createdAt" DESC
-            LIMIT 100
-        `;
+        const pins = await (prisma.voicePin as any).findManyInBBox({
+            minLat,
+            maxLat,
+            minLng,
+            maxLng,
+            visibility
+        });
 
-        // Map results to include nested user object and fetch images
-        const results = await Promise.all(pins.map(async (v) => {
+        // Fetch images for each pin (the extension method handles user join and lat/lng)
+        const results = await Promise.all(pins.map(async (v: any) => {
             const images = await prisma.image.findMany({ where: { voicePinId: v.id } });
             return {
                 ...v,

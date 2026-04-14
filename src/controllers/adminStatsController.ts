@@ -36,15 +36,15 @@ export const getPlatformStats: RequestHandler = async (_req, res): Promise<void>
  */
 export const getPinsHeatmap: RequestHandler = async (_req, res): Promise<void> => {
     try {
-        const pins: any[] = await prisma.$queryRaw`
-            SELECT 
-                id,
-                "emotionLabel",
-                ST_Y(location) as latitude,
-                ST_X(location) as longitude
-            FROM "VoicePin"
-            WHERE "deletedAt" IS NULL
-        `;
+        const pins = await prisma.voicePin.findMany({
+            where: { deletedAt: null },
+            select: {
+                id: true,
+                emotionLabel: true,
+                latitude: true,
+                longitude: true
+            }
+        });
 
         res.status(200).json({ pins });
     } catch (err) {
