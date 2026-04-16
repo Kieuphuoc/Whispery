@@ -1,0 +1,51 @@
+# Dependencies (installed in the image)
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Secrets and local config (pass via compose / runtime env)
+.env
+.env.*
+!.env.example
+
+# Firebase / cloud keys (never bake into images)
+**/serviceAccountKey.json
+**/*serviceAccount*.json
+
+# Git — not needed in the image, shrinks build context
+.git
+.gitignore
+
+# Host build output — image runs `npm run build`
+dist
+build
+*.tsbuildinfo
+
+# Prisma generated on host (regenerated with `prisma generate` in Dockerfile)
+src/generated/prisma
+
+# Tests and coverage (not used by production image)
+coverage
+.nyc_output
+**/__tests__
+**/*.test.ts
+**/*.spec.ts
+
+# Docker / orchestration (not needed inside the app layer)
+Dockerfile*
+docker-compose*.yaml
+docker-compose*.yml
+.dockerignore
+
+# Editor / OS noise
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local notes / scratch
+ip.txt

@@ -1,11 +1,9 @@
-import { Request, Response, RequestHandler } from 'express';
 import prisma, { parseEWKBPoint } from '../prismaClient.js';
-
 /**
  * Get platform-wide statistics for the admin dashboard.
  * Includes total users, total pins, and emotion distribution.
  */
-export const getPlatformStats: RequestHandler = async (_req, res): Promise<void> => {
+export const getPlatformStats = async (_req, res) => {
     try {
         const [totalUsers, totalPins, emotions] = await Promise.all([
             prisma.user.count({ where: { deletedAt: null } }),
@@ -16,7 +14,6 @@ export const getPlatformStats: RequestHandler = async (_req, res): Promise<void>
                 _count: { emotionLabel: true }
             })
         ]);
-
         res.status(200).json({
             users: totalUsers,
             pins: totalPins,
@@ -25,25 +22,22 @@ export const getPlatformStats: RequestHandler = async (_req, res): Promise<void>
                 count: e._count.emotionLabel
             }))
         });
-    } catch (err) {
-        const error = err as Error;
+    }
+    catch (err) {
+        const error = err;
         res.status(500).json({ message: error.message });
     }
 };
-
 /**
  * Get all pins' locations and emotions for the heatmap.
  */
-export const getPinsHeatmap: RequestHandler = async (_req, res): Promise<void> => {
+export const getPinsHeatmap = async (_req, res) => {
     try {
-        const rows = await prisma.$queryRaw<
-            { id: number; emotionLabel: string | null; location: Buffer }[]
-        >`
+        const rows = await prisma.$queryRaw `
             SELECT v.id, v."emotionLabel", v.location::bytea AS location
             FROM "VoicePin" v
             WHERE v."deletedAt" IS NULL
         `;
-
         const pins = rows.map((row) => {
             const coords = parseEWKBPoint(row.location);
             return {
@@ -53,10 +47,11 @@ export const getPinsHeatmap: RequestHandler = async (_req, res): Promise<void> =
                 longitude: coords?.longitude ?? null
             };
         });
-
         res.status(200).json({ pins });
-    } catch (err) {
-        const error = err as Error;
+    }
+    catch (err) {
+        const error = err;
         res.status(500).json({ message: error.message });
     }
 };
+//# sourceMappingURL=adminStatsController.js.map

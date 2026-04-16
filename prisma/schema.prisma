@@ -137,7 +137,7 @@
     audioSize       Int?      // Size in bytes
     
     // --- Location & Context ---
-    location        Unsupported("geometry(Point, 4326)")
+    location        Unsupported("geometry(Point, 4326)")?
     address         String?
     
     // --- Privacy & Mode ---
