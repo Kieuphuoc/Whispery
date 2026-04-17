@@ -161,15 +161,15 @@ export async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
     });
 }
 
-export async function moderateText(text: string): Promise<boolean> {
-    if (!text.trim()) return false;
+export async function moderateText(text: string): Promise<{ isRejected: boolean; categories: string[] }> {
+    if (!text.trim()) return { isRejected: false, categories: [] };
 
     const endpoint = process.env.AZURE_CONTENT_SAFETY_ENDPOINT;
     const key = process.env.AZURE_CONTENT_SAFETY_KEY;
 
     if (!endpoint || !key) {
         console.warn('Azure Content Safety configuration is missing. Skipping moderation.');
-        return false;
+        return { isRejected: false, categories: [] };
     }
 
     const credential = new AzureKeyCredential(key);
@@ -188,6 +188,7 @@ export async function moderateText(text: string): Promise<boolean> {
         }
 
         const categoriesAnalysis = result.body.categoriesAnalysis;
+        const categories: string[] = [];
 
         let isRejected = false;
         if (categoriesAnalysis) {
@@ -195,25 +196,26 @@ export async function moderateText(text: string): Promise<boolean> {
                 // Hate, Violence, SelfHarm, Sexual
                 if (category.severity !== undefined && category.severity > 0) {
                     isRejected = true;
+                    categories.push(`${category.category} (severity: ${category.severity})`);
                     console.log(`Content rejected due to category ${category.category} with severity ${category.severity}`);
-                    break;
                 }
             }
         }
-        return isRejected;
+        return { isRejected, categories };
     } catch (error) {
         console.error('Error in AI Content Safety:', error);
-        return false;
+        return { isRejected: false, categories: [] };
     }
 }
 
-export async function updateDatabase(postId: number, status: VoicePinStatus, text?: string): Promise<void> {
-    console.log(`[Database] Post ${postId} status updated to: ${status}`);
+export async function updateDatabase(postId: number, status: VoicePinStatus, text?: string, reason?: string): Promise<void> {
+    console.log(`[Database] Post ${postId} status updated to: ${status}${reason ? ` Reason: ${reason}` : ''}`);
     const updatedPost = await prisma.voicePin.update({
         where: { id: postId },
         data: {
             status,
-            transcription: text ?? null // Sử dụng null để Prisma thực sự cập nhật nếu text là chuỗi rỗng
+            transcription: text ?? null,
+            moderationReason: reason ?? null
         }
     });
     console.log(`[Database] Post ${postId} update successful. Transcription saved: ${!!updatedPost.transcription}`);
@@ -244,17 +246,17 @@ export async function processAudioBlob(blobName: string, postId: number, contain
         const text = await transcribeAudio(downloadBlockBlobResponse);
         console.log(`Transcribed text: ${text}`);
 
-        let isRejected = false;
-        if (text) {
-            isRejected = await moderateText(text);
-            console.log(`Moderation done, isRejected: ${isRejected}`);
-        } else {
-            console.log("No text transcribed from the audio.");
-        }
+        const { isRejected, categories } = text 
+            ? await moderateText(text) 
+            : { isRejected: false, categories: [] };
+        
+        console.log(`Moderation done, isRejected: ${isRejected}, categories: ${categories.join(', ')}`);
 
         console.log(`[Moderation] Determining final status for post ${postId}...`);
         const status = isRejected ? VoicePinStatus.REJECTED : VoicePinStatus.APPROVED;
-        await updateDatabase(postId, status, text);
+        const reason = categories.length > 0 ? categories.join(', ') : (text ? 'Clean' : 'No text');
+        
+        await updateDatabase(postId, status, text, reason);
         console.log(`[Process] Finished processing for post ${postId}`);
     } catch (err) {
         console.error(`[Process] Error processing audio blob for post ${postId}:`, err);

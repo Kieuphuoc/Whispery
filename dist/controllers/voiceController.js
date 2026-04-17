@@ -689,6 +689,7 @@ export const getPublicVoicePin = async (_req, res) => {
         const voicePins = await prisma.voicePin.findMany({
             where: {
                 visibility: 'PUBLIC',
+                status: 'APPROVED',
                 deletedAt: null
             },
             include: {
@@ -771,6 +772,7 @@ export const getPublicVoicePinByUser = async (req, res) => {
             where: {
                 visibility: 'PUBLIC',
                 userId: parseInt(id),
+                status: 'APPROVED',
                 deletedAt: null
             },
             include: {
@@ -847,6 +849,7 @@ export const getMyPublicVoicePins = async (req, res) => {
             where: {
                 visibility: 'PUBLIC',
                 userId,
+                status: 'APPROVED',
                 deletedAt: null
             },
             include: {
@@ -935,6 +938,7 @@ export const getFriendsVisibleVoicePins = async (req, res) => {
             where: {
                 visibility: { in: ['PUBLIC', 'FRIENDS'] },
                 userId: { in: friendIds },
+                status: 'APPROVED',
                 deletedAt: null
             },
             include: {
@@ -1634,21 +1638,18 @@ export const getVoicePinsByBBox = async (req, res) => {
             maxLng,
             visibility
         });
-        // Fetch images for each pin (the extension method handles user join and lat/lng)
-        const results = await Promise.all(pins.map(async (v) => {
-            const images = await prisma.image.findMany({ where: { voicePinId: v.id } });
-            return {
-                ...v,
-                user: v.isAnonymous
-                    ? { id: v.userId, username: 'anonymous', displayName: 'Ẩn danh', avatar: null }
-                    : { id: v.userId, username: v.username, displayName: v.displayName, avatar: v.avatar },
-                images
-            };
+        console.log(`[BBox] visibility=${visibility} bbox=[${minLat},${maxLat},${minLng},${maxLng}] → ${pins.length} pins`);
+        const results = pins.map((v) => ({
+            ...v,
+            user: v.isAnonymous
+                ? { id: v.userId, username: 'anonymous', displayName: 'Ẩn danh', avatar: null }
+                : { id: v.userId, username: v.username, displayName: v.displayName, avatar: v.avatar },
         }));
         res.status(200).json({ data: results });
     }
     catch (err) {
         const error = err;
+        console.error('[BBox] Error:', error.message);
         res.status(400).json({ message: error.message });
     }
 };

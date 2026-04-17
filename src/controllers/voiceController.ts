@@ -753,6 +753,7 @@ export const getPublicVoicePin: RequestHandler = async (_req, res): Promise<void
         const voicePins = await prisma.voicePin.findMany({
             where: {
                 visibility: 'PUBLIC',
+                status: 'APPROVED',
                 deletedAt: null
             },
             include: {
@@ -836,6 +837,7 @@ export const getPublicVoicePinByUser: RequestHandler = async (req, res): Promise
             where: {
                 visibility: 'PUBLIC',
                 userId: parseInt(id),
+                status: 'APPROVED',
                 deletedAt: null
             },
             include: {
@@ -913,6 +915,7 @@ export const getMyPublicVoicePins: RequestHandler = async (req, res): Promise<vo
             where: {
                 visibility: 'PUBLIC',
                 userId,
+                status: 'APPROVED',
                 deletedAt: null
             },
             include: {
@@ -1005,6 +1008,7 @@ export const getFriendsVisibleVoicePins: RequestHandler = async (req, res): Prom
             where: {
                 visibility: { in: ['PUBLIC', 'FRIENDS'] },
                 userId: { in: friendIds },
+                status: 'APPROVED',
                 deletedAt: null
             },
             include: {

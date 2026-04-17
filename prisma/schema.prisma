@@ -165,6 +165,7 @@
  
     // --- Moderation Status ---
     status          VoicePinStatus @default(PENDING)
+    moderationReason String?      // Reason for rejection
  
     // --- Soft Delete ---
     deletedAt       DateTime?

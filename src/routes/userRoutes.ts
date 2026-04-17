@@ -39,5 +39,7 @@ router.delete('/me', authenticate, deactivateAccount);
 router.get('/search', searchUsers);
 router.get('/:id', getUserById);
 router.get('/:id/stats', getUserStats);
+router.get('/:id/achievements', getMyAchievements);
+router.get('/:id/discovered', getMyDiscoveredVoices);
 
 export default router;

@@ -6,7 +6,10 @@ import { VoicePinStatus } from '@prisma/client';
  */
 export declare function convertToWav(inputBuffer: Buffer): Promise<Buffer>;
 export declare function transcribeAudio(audioBuffer: Buffer): Promise<string>;
-export declare function moderateText(text: string): Promise<boolean>;
-export declare function updateDatabase(postId: number, status: VoicePinStatus, text?: string): Promise<void>;
+export declare function moderateText(text: string): Promise<{
+    isRejected: boolean;
+    categories: string[];
+}>;
+export declare function updateDatabase(postId: number, status: VoicePinStatus, text?: string, reason?: string): Promise<void>;
 export declare function processAudioBlob(blobName: string, postId: number, containerName?: string): Promise<void>;
 //# sourceMappingURL=audioModerationService.d.ts.map

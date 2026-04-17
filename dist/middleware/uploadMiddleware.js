@@ -3,15 +3,19 @@ const storage = multer.memoryStorage();
 const upload = multer({
     storage,
     limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB limit
+        fileSize: 20 * 1024 * 1024 // 20MB limit
     },
     fileFilter: (_req, file, cb) => {
+        console.log(`[UPLOAD] Mimetype: ${file.mimetype}, OriginalName: ${file.originalname}`);
         const allowedTypes = [
             // Images
             'image/jpeg',
             'image/jpg',
             'image/png',
             'image/webp',
+            'image/heic',
+            'image/heif',
+            'image/gif',
             // Audio
             'audio/mpeg', // .mp3
             'audio/wav', // .wav
@@ -21,10 +25,10 @@ const upload = multer({
             'audio/m4a', // .m4a
             'audio/ogg', // .ogg
             'audio/webm',
-            'video/mp4' // .webm
+            'video/mp4' // .mp4
         ];
         if (!allowedTypes.includes(file.mimetype)) {
-            return cb(new Error('Only accept image (jpeg, png, webp) or audio (mp3, wav, m4a, ogg, webm)'));
+            return cb(new Error('Only accept image (jpeg, png, webp, heic, heif, gif) or audio (mp3, wav, m4a, ogg, webm)'));
         }
         cb(null, true);
     }

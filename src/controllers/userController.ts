@@ -351,6 +351,7 @@ export const getUserById: RequestHandler = async (req, res): Promise<void> => {
                 bio: true,
                 // Gamification (public)
                 level: true,
+                xp: true,
                 createdAt: true
             }
         });
@@ -858,8 +859,11 @@ export const updateFcmToken: RequestHandler = async (req, res): Promise<void> =>
  */
 export const getMyAchievements: RequestHandler = async (req, res): Promise<void> => {
     try {
+        const idParam = req.params.id as string | undefined;
+        const userId = idParam ? parseInt(idParam) : req.user!.id;
+
         const achievements = await prisma.userAchievement.findMany({
-            where: { userId: req.user!.id },
+            where: { userId },
             include: {
                 achievement: true
             },
@@ -919,8 +923,11 @@ export const getMyAchievements: RequestHandler = async (req, res): Promise<void>
  */
 export const getMyDiscoveredVoices: RequestHandler = async (req, res): Promise<void> => {
     try {
+        const idParam = req.params.id as string | undefined;
+        const userId = idParam ? parseInt(idParam) : req.user!.id;
+
         const discovered = await prisma.discoveredVoice.findMany({
-            where: { userId: req.user!.id },
+            where: { userId },
             include: {
                 voicePin: {
                     include: {
