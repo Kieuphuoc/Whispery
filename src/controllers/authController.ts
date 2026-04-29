@@ -1,6 +1,7 @@
 import { Request, Response, RequestHandler } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import admin from 'firebase-admin';
 import prisma from '../prismaClient.js';
 import { uploadToAzure } from '../configs/azureStorage.js';
 
@@ -229,5 +230,99 @@ export const login: RequestHandler = async (req, res): Promise<void> => {
         const error = err as Error;
         console.error(`[Auth/Login] Error:`, error.message);
         res.status(400).json({ message: error.message });
+    }
+};
+
+/**
+ * @swagger
+ * /auth/google:
+ *   post:
+ *     summary: Google Login
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - idToken
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ */
+export const googleLogin: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const { idToken } = req.body;
+        console.log(`[Auth/Google] Attempt to login with Google token`);
+
+        if (!idToken) {
+            res.status(400).json({ message: 'ID Token is required' });
+            return;
+        }
+
+        // Verify the token with Firebase Admin
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const { uid, email, name, picture } = decodedToken;
+
+        if (!email) {
+            res.status(400).json({ message: 'Email not found in Google account' });
+            return;
+        }
+
+        // Find user by googleId or email
+        let user = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { googleId: uid },
+                    { email: email }
+                ]
+            }
+        });
+
+        if (!user) {
+            // Create new user if not exists
+            // Generate a unique username from email
+            const baseUsername = email.split('@')[0];
+            let uniqueUsername = baseUsername;
+            let counter = 1;
+
+            while (await prisma.user.findUnique({ where: { username: uniqueUsername } })) {
+                uniqueUsername = `${baseUsername}${counter}`;
+                counter++;
+            }
+
+            user = await prisma.user.create({
+                data: {
+                    username: uniqueUsername,
+                    email: email,
+                    googleId: uid,
+                    displayName: name || null,
+                    avatar: picture || null,
+                }
+            });
+            console.log(`[Auth/Google] Created new user: ${user.username} (ID: ${user.id})`);
+        } else if (!user.googleId) {
+            // Link google account to existing email account
+            user = await prisma.user.update({
+                where: { id: user.id },
+                data: { googleId: uid }
+            });
+            console.log(`[Auth/Google] Linked Google account to existing user: ${user.username}`);
+        }
+
+        const { password: _, ...userWithoutPassword } = user;
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '24h' });
+
+        console.log(`[Auth/Google] Successfully logged in: ${user.username}`);
+        res.status(200).json({ token, user: userWithoutPassword });
+
+    } catch (err) {
+        const error = err as Error;
+        console.error(`[Auth/Google] Error:`, error.message);
+        res.status(400).json({ message: 'Invalid Google token or verification failed' });
     }
 };

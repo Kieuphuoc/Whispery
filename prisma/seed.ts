@@ -1,4 +1,4 @@
-import { PrismaClient, UserStatus, UserRole, VoiceType, Visibility, ReactionType, FriendRequestStatus, NotificationType, ReportReason, ReportStatus } from '@prisma/client';
+import { PrismaClient, UserStatus, UserRole, VoiceType, Visibility, ReactionType, FriendRequestStatus, NotificationType, ReportReason, ReportStatus, VoicePinStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -25,6 +25,7 @@ type VoicePinSeedInput = {
     commentsCount?: number;
     userId: number;
     createdAt?: Date | string;
+    status?: VoicePinStatus;
 };
 
 async function createVoicePinRaw(input: VoicePinSeedInput) {
@@ -52,6 +53,7 @@ async function createVoicePinRaw(input: VoicePinSeedInput) {
             "reactionsCount",
             "commentsCount",
             "userId",
+            "status",
             "createdAt",
             "updatedAt"
         ) VALUES (
@@ -74,6 +76,7 @@ async function createVoicePinRaw(input: VoicePinSeedInput) {
             ${input.reactionsCount ?? 0},
             ${input.commentsCount ?? 0},
             ${input.userId},
+            CAST(${input.status ?? VoicePinStatus.APPROVED} AS "VoicePinStatus"),
             ${input.createdAt ?? new Date()},
             ${input.createdAt ?? new Date()}
         )
@@ -265,8 +268,8 @@ async function main() {
                 email: 'simplo@gmail.com',
                 password: hashedPassword,
                 displayName: 'Simp lỏ',
-                avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=mike',
-                cover: 'https://api.dicebear.com/7.x/avataaars/svg?seed=mike',
+                avatar: 'https://i.pinimg.com/1200x/0d/70/07/0d70070a37562e71afddf2b82b4c0ace.jpg',
+                cover: 'https://i.pinimg.com/1200x/0d/70/07/0d70070a37562e71afddf2b82b4c0ace.jpg',
                 bio: 'Simp lỏ chúa, chỉ ở đây để tìm người thương... 💖🥺',
                 level: 1,
                 xp: 25,
@@ -280,7 +283,7 @@ async function main() {
                 email: 'admin@whisper.app',
                 password: hashedPassword,
                 displayName: 'Whisper Admin',
-                avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
+                avatar: 'https://i.pinimg.com/736x/5c/15/8d/5c158d3e2ffe37e982f7a8c15869c302.jpg',
                 role: UserRole.ADMIN,
                 status: UserStatus.ACTIVE
             }
@@ -354,6 +357,7 @@ async function main() {
             reactionsCount: 42,
             commentsCount: 8,
             userId: users[0].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-03-15T10:00:00Z')
         }),
         createVoicePinRaw({
@@ -375,6 +379,7 @@ async function main() {
             reactionsCount: 18,
             commentsCount: 3,
             userId: users[1].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-03-10T14:30:00Z')
         }),
         // Reassigned voice pins
@@ -396,6 +401,7 @@ async function main() {
             reactionsCount: 35,
             commentsCount: 11,
             userId: users[2].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-03-05T09:15:00Z')
         }),
         createVoicePinRaw({
@@ -416,6 +422,7 @@ async function main() {
             reactionsCount: 48,
             commentsCount: 7,
             userId: users[3].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-02-28T08:00:00Z')
         }),
         createVoicePinRaw({
@@ -436,6 +443,7 @@ async function main() {
             reactionsCount: 67,
             commentsCount: 19,
             userId: users[4].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-02-20T21:45:00Z')
         }),
         createVoicePinRaw({
@@ -456,6 +464,7 @@ async function main() {
             reactionsCount: 38,
             commentsCount: 5,
             userId: users[0].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-03-12T19:20:00Z')
         }),
         createVoicePinRaw({
@@ -476,6 +485,7 @@ async function main() {
             reactionsCount: 29,
             commentsCount: 8,
             userId: users[1].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-03-01T15:10:00Z')
         }),
         createVoicePinRaw({
@@ -496,6 +506,7 @@ async function main() {
             reactionsCount: 92,
             commentsCount: 24,
             userId: users[2].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-02-15T22:30:00Z')
         }),
         createVoicePinRaw({
@@ -516,6 +527,7 @@ async function main() {
             reactionsCount: 56,
             commentsCount: 14,
             userId: users[3].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-03-18T06:00:00Z')
         }),
         createVoicePinRaw({
@@ -536,6 +548,7 @@ async function main() {
             reactionsCount: 41,
             commentsCount: 16,
             userId: users[4].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-03-08T11:20:00Z')
         }),
         // Jane's voice pins
@@ -557,6 +570,7 @@ async function main() {
             reactionsCount: 31,
             commentsCount: 12,
             userId: users[1].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-02-25T16:40:00Z')
         }),
         createVoicePinRaw({
@@ -577,6 +591,7 @@ async function main() {
             reactionsCount: 8,
             commentsCount: 2,
             userId: users[1].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-03-14T20:15:00Z')
         }),
         // Alex's voice pins
@@ -599,6 +614,7 @@ async function main() {
             reactionsCount: 25,
             commentsCount: 6,
             userId: users[2].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-03-03T12:00:00Z')
         }),
         // Sarah's voice pins
@@ -620,6 +636,7 @@ async function main() {
             reactionsCount: 78,
             commentsCount: 22,
             userId: users[3].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-02-18T14:30:00Z')
         }),
         createVoicePinRaw({
@@ -641,6 +658,7 @@ async function main() {
             reactionsCount: 22,
             commentsCount: 5,
             userId: users[3].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-03-17T17:50:00Z')
         }),
         // Extra AR pin near current test location (from device log)
@@ -664,6 +682,7 @@ async function main() {
             reactionsCount: 0,
             commentsCount: 0,
             userId: users[4].id,
+            status: VoicePinStatus.APPROVED,
             createdAt: new Date('2026-03-19T08:00:00Z')
         }),
         // Thêm 20 voice pins rải rác từ tháng 7-2025 đến nay cho tất cả user
@@ -693,6 +712,7 @@ async function main() {
                 reactionsCount: Math.floor(Math.random() * 30),
                 commentsCount: Math.floor(Math.random() * 10),
                 userId: currentUser.id,
+                status: VoicePinStatus.APPROVED,
                 createdAt: new Date(randomTs)
             });
         }),

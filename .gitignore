@@ -2,5 +2,10 @@ node_modules
 # Keep environment variables out of version control
 .env
 
+dist
+uploads
+scratch
+
 /src/generated/prisma
 src/configs/serviceAccountKey.json
+

@@ -15,7 +15,8 @@ import {
     getRandomVoicePin,
     discoverVoice,
     getDiscoverers,
-    getVoicePinsByBBox
+    getVoicePinsByBBox,
+    analyzeVoice
 } from '../controllers/voiceController.js';
 
 const router = express.Router();
@@ -24,7 +25,10 @@ const router = express.Router();
 router.get('/random', authenticate, getRandomVoicePin);
 
 // GET VoicePins by Bounding Box (must be before /:id)
-router.get('/bbox', getVoicePinsByBBox);
+router.get('/bbox', optionalAuthenticate, getVoicePinsByBBox);
+
+// GET Analysis (Transcription & Emotion) - must be before /:id
+router.post('/analyze/', authenticate, upload.single('file'), analyzeVoice);
 
 // Get all voice pins for logged-in user
 router.get('/', authenticate, getVoicePin);

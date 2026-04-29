@@ -1735,12 +1735,14 @@ export const getVoicePinsByBBox: RequestHandler = async (req, res): Promise<void
             return;
         }
 
+        const userId = req.user?.id;
         const pins = await (prisma.voicePin as any).findManyInBBox({
             minLat,
             maxLat,
             minLng,
             maxLng,
-            visibility
+            visibility,
+            userId
         });
 
         console.log(`[BBox] visibility=${visibility} bbox=[${minLat},${maxLat},${minLng},${maxLng}] → ${pins.length} pins`);
@@ -1756,6 +1758,66 @@ export const getVoicePinsByBBox: RequestHandler = async (req, res): Promise<void
     } catch (err) {
         const error = err as Error;
         console.error('[BBox] Error:', error.message);
+        res.status(400).json({ message: error.message });
+    }
+};
+
+/**
+ * @swagger
+ * /voice/analyze:
+ *   post:
+ *     summary: Analyze audio with Gemini (transcription & emotion)
+ *     description: Takes an audio file and returns transcription and emotion analysis without creating a record.
+ *     tags: [VoicePin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - file
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Analysis successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     transcript: { type: string }
+ *                     emotion_label: { type: string }
+ *                     confidence_score: { type: number }
+ */
+export const analyzeVoice: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        console.log("analyzeVoice: Request received");
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] } || {};
+        // Support both single file and fields
+        const audioFile = (req.file as Express.Multer.File) || files['file']?.[0];
+
+        if (!audioFile) {
+            res.status(400).json({ message: 'Audio file is required' });
+            return;
+        }
+
+        console.log("analyzeVoice: Analyzing audio with Gemini...");
+        const geminiResult = await analyzeAudioEmotion(audioFile.buffer, audioFile.mimetype);
+        console.log("analyzeVoice: Gemini Analysis Complete", geminiResult);
+
+        res.status(200).json({ data: geminiResult });
+    } catch (err) {
+        console.error("analyzeVoice: Error", err);
+        const error = err as Error;
         res.status(400).json({ message: error.message });
     }
 };
